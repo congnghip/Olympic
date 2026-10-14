@@ -19,7 +19,7 @@ Dự án cung cấp giải pháp toàn diện cho bài toán quản lý, tối �
 * **San tải khi phương tiện gặp sự cố kỹ thuật:** Tự động điều phối các thùng rác chưa gom của xe bị hỏng sang các xe lân cận còn dung tích chứa khả dụng.
 * **Tối ưu hóa chỉ số môi trường (ESG):** Đo lường trực tiếp quãng đường tiết kiệm và lượng phát thải $\text{CO}_2$ cắt giảm so với phương pháp truyền thống.
 
-![Demo Hệ Thống](assets/demo.gif)
+![Giao Diện Trung Tâm Điều Phối WebGIS](assets/landing_map.png)
 
 ---
 
