@@ -54,6 +54,7 @@ Makefile.cmake
 .ninja_*
 
 # Temporary files
+.wrangler/
 
 # Typst & Document builds
 *.typ

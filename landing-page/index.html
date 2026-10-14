@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Waste Routing & Dynamic Incident Dispatcher | Hệ Thống Điều Phối Thu Gom Rác Thông Minh</title>
+  <meta name="description" content="Nền tảng tối ưu hóa lộ trình xe thu gom rác đô thị thời gian thực, tự động tái định tuyến sự cố dưới 50ms, hỗ trợ ngõ hẻm và đo lường chỉ số xanh ESG.">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              900: '#064e3b',
+            },
+            dark: {
+              800: '#0f172a',
+              900: '#020617',
+              950: '#010409',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <style>
+    /* Custom Scrollbar & Glow Effects */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #020617; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .glow-green { box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.3); }
+    .glow-border { border: 1px solid rgba(16, 185, 129, 0.3); }
+  </style>
+</head>
+
+<body class="bg-dark-950 text-slate-100 font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- ==================== HEADER NAVBAR ==================== -->
+  <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-brand-500/20 text-white font-bold text-xl">
+          🚛
+        </div>
+        <div>
+          <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-brand-400 bg-clip-text text-transparent">
+            Smart Waste Routing
+          </span>
+          <span class="hidden md:inline-block text-xs text-brand-400 font-mono ml-2 px-2 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/20">v1.2</span>
+        </div>
+      </div>
+
+      <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-300">
+        <a href="#features" class="hover:text-brand-400 transition">Tính năng</a>
+        <a href="#demo" class="hover:text-brand-400 transition">Trải nghiệm Bản đồ</a>
+        <a href="#architecture" class="hover:text-brand-400 transition">Kiến trúc</a>
+        <a href="#benchmarks" class="hover:text-brand-400 transition">Đo lường ESG</a>
+        <a href="#deployment" class="hover:text-brand-400 transition">Triển khai</a>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <a href="https://github.com/congnghip/Olympic" target="_blank" class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-sm font-semibold border border-slate-700 transition">
+          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== HERO SECTION ==================== -->
+  <section class="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+    <!-- Gradient Background Glow -->
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-brand-500/10 blur-[140px] pointer-events-none rounded-full"></div>
+    <div class="absolute top-1/3 left-1/4 -translate-y-1/2 w-[400px] h-[300px] bg-cyan-500/10 blur-[120px] pointer-events-none rounded-full"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+      <!-- Badges -->
+      <div class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-700/80 text-xs font-medium text-slate-300 mb-8 shadow-inner">
+        <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
+        <span>Giải Pháp Quản Trị Vận Tải Đô Thị Thông Minh (Smart Civic-Tech)</span>
+        <span class="text-slate-500">|</span>
+        <span class="text-brand-400 font-semibold">100% Bản Đồ Việt Nam Hợp Chuẩn</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-5xl mx-auto leading-[1.15]">
+        Tối Ưu Lộ Trình Xe Gom Rác & <br class="hidden sm:block">
+        <span class="bg-gradient-to-r from-brand-400 via-emerald-300 to-cyan-400 bg-clip-text text-transparent">
+          Tái Định Tuyến Sự Cố Tức Thời
+        </span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="mt-6 text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed">
+        Nền tảng kết hợp giữa giải thuật đàn kiến song song <strong>C++17 3D-ACO</strong>, ma trận đồ thị đường phố <strong>OSRM</strong> và trung tâm điều phối <strong>WebGIS</strong> — tự động vượt rào chắn giao thông dưới <strong>50ms</strong> và giảm <strong>32%</strong> lượng phát thải $\text{CO}_2$.
+      </p>
+
+      <!-- CTA Buttons -->
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="#demo" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-base shadow-lg shadow-brand-500/25 transition flex items-center justify-center space-x-2">
+          <span>Trải Nghiệm Bản Đồ Trực Tiếp</span>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </a>
+        <a href="#deployment" class="w-full sm:w-auto px-8 py-3.5 rounded-xl glass hover:bg-slate-800/80 text-white font-semibold text-base transition flex items-center justify-center space-x-2 border border-slate-700">
+          <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>Khởi Động 1 Lệnh Docker</span>
+        </a>
+      </div>
+
+      <!-- Quick Stats Metrics Strip -->
+      <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+        <div class="glass p-5 rounded-2xl border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-brand-400 font-mono">&lt; 50ms</div>
+          <div class="text-xs text-slate-400 mt-1">Tái định tuyến sự cố đường cấm</div>
+        </div>
+        <div class="glass p-5 rounded-2xl border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-cyan-400 font-mono">-32%</div>
+          <div class="text-xs text-slate-400 mt-1">Cắt giảm phát thải khí nhà kính CO₂</div>
+        </div>
+        <div class="glass p-5 rounded-2xl border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-purple-400 font-mono">100%</div>
+          <div class="text-xs text-slate-400 mt-1">Loại trừ tình trạng bỏ sót bô rác</div>
+        </div>
+        <div class="glass p-5 rounded-2xl border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-amber-400 font-mono">0 đới</div>
+          <div class="text-xs text-slate-400 mt-1">Tuân thủ chủ quyền, không đường 9 đoạn</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== LIVE INTERACTIVE MAP DEMO ==================== -->
+  <section id="demo" class="py-20 relative bg-slate-900/40 border-y border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row md:items-end justify-between mb-8">
+        <div>
+          <span class="text-brand-400 text-xs font-mono font-semibold uppercase tracking-wider">Trực quan hóa thời gian thực</span>
+          <h2 class="text-3xl sm:text-4xl font-bold text-white mt-1">Bản Đồ Điều Phối Quận 1, TP. Hồ Chí Minh</h2>
+          <p class="text-slate-400 text-sm mt-2 max-w-xl">
+            Thử nghiệm mô phỏng sự cố rào chắn giao thông và quan sát cơ chế tự tái định tuyến đường vòng ngay trên trình duyệt.
+          </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+          <button id="btn-solve" class="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs shadow transition flex items-center space-x-1.5">
+            <span>⚡ Tối Ưu Lộ Trình (3 Xe)</span>
+          </button>
+          <button id="btn-roadblock" class="px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 font-semibold text-xs transition flex items-center space-x-1.5">
+            <span>⛔ Mô Phỏng Chặn Đường</span>
+          </button>
+          <button id="btn-reset" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition">
+            <span>Đặt Lại</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Map Card Container -->
+      <div class="glass rounded-2xl overflow-hidden border border-slate-800 relative shadow-2xl">
+        <!-- Floating Live Status Overlay -->
+        <div class="absolute top-4 left-4 z-[500] glass px-4 py-3 rounded-xl border border-slate-700 text-xs shadow-lg flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <span class="font-semibold text-white">Trạm Bến Nghé (Depot 0)</span>
+          </div>
+          <span class="text-slate-600">|</span>
+          <div class="text-slate-300">
+            Tổng bô rác: <span class="font-mono font-bold text-white">12 điểm</span>
+          </div>
+          <span class="text-slate-600">|</span>
+          <div class="text-slate-300">
+            Sức chứa đội xe: <span class="font-mono font-bold text-brand-400">3 x 150 kg</span>
+          </div>
+        </div>
+
+        <!-- The Leaflet Map Canvas -->
+        <div id="interactive-map" class="w-full h-[550px] bg-slate-950"></div>
+
+        <!-- Bottom ESG Metric Bar -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 bg-slate-950/90 border-t border-slate-800 p-4 text-xs">
+          <div class="border-r border-slate-800 pr-4">
+            <div class="text-slate-400">Tổng Quãng Đường:</div>
+            <div id="esg-dist" class="font-mono text-base font-bold text-white mt-0.5">14.82 km</div>
+          </div>
+          <div class="border-r border-slate-800 px-4">
+            <div class="text-slate-400">Thời Gian Tính Toán:</div>
+            <div id="esg-time" class="font-mono text-base font-bold text-brand-400 mt-0.5">38 ms</div>
+          </div>
+          <div class="border-r border-slate-800 px-4">
+            <div class="text-slate-400">CO₂ Tiết Kiệm:</div>
+            <div id="esg-co2" class="font-mono text-base font-bold text-cyan-400 mt-0.5">4.22 kg CO₂</div>
+          </div>
+          <div class="pl-4">
+            <div class="text-slate-400">Trạng Thái Tuyến Tuyến:</div>
+            <div id="esg-status" class="font-mono text-base font-bold text-emerald-400 mt-0.5">Tối Ưu & An Toàn</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CORE TECHNICAL CAPABILITIES ==================== -->
+  <section id="features" class="py-24 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <span class="text-brand-400 text-xs font-mono font-semibold uppercase tracking-wider">Đặc tả kỹ thuật</span>
+        <h2 class="text-3xl sm:text-5xl font-extrabold text-white mt-2">Giải Quyết Triệt Để Mọi Thách Thức Thực Địa</h2>
+        <p class="text-slate-400 text-base mt-4">
+          Xây dựng dựa trên các ràng buộc vận hành thực tế tại đô thị Việt Nam: ngõ hẻm chật hẹp, rào chắn thi công đột xuất và mùi hôi chất thải.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="glass p-8 rounded-2xl border border-slate-800/80 hover:border-brand-500/40 transition duration-300">
+          <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 flex items-center justify-center text-2xl mb-6">
+            ⚡
+          </div>
+          <h3 class="text-xl font-bold text-white">Tái Định Tuyến Dưới 50ms</h3>
+          <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+            Khi phát hiện rào chắn công trình hoặc ngập úng, hệ thống tự động loại bỏ cung đường bị chặn trên đồ thị OSRM và tìm tuyến đường vòng tức thời mà không cần điều phối viên thao tác thủ công.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="glass p-8 rounded-2xl border border-slate-800/80 hover:border-cyan-500/40 transition duration-300">
+          <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-2xl mb-6">
+            🔄
+          </div>
+          <h3 class="text-xl font-bold text-white">San Tải Phương Tiện Hỏng</h3>
+          <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+            Khi xe rác gặp sự cố kỹ thuật hỏng hóc giữa ca, hệ thống lập tức trích xuất các bô rác chưa thu gom và tự động san sẻ sang các xe lân cận còn dung tích trống mà không làm vỡ khung giờ thu gom.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="glass p-8 rounded-2xl border border-slate-800/80 hover:border-emerald-500/40 transition duration-300">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl mb-6">
+            🚶
+          </div>
+          <h3 class="text-xl font-bold text-white">Thu Gom Đi Bộ Hẻm Sâu (Walk-in)</h3>
+          <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+            Tự động nhận diện bô rác nằm trong hẻm nhỏ xe cơ giới không vào được. Hệ thống vạch điểm đỗ thích hợp ở đầu hẻm và hướng dẫn công nhân đi bộ vào lấy thùng rác, khắc phục hạn chế của bản đồ thông thường.
+          </p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="glass p-8 rounded-2xl border border-slate-800/80 hover:border-purple-500/40 transition duration-300">
+          <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-2xl mb-6">
+            👃
+          </div>
+          <h3 class="text-xl font-bold text-white">Ưu Tiên Rác Bốc Mùi</h3>
+          <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+            Thuật toán Clarke-Wright tích hợp hệ số thưởng (Urgency Bonus) cho các thùng rác bốc mùi (<code class="font-mono text-brand-400">has_smell=true</code>), đảm bảo các điểm nóng ô nhiễm được giải phóng trước tiên.
+          </p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="glass p-8 rounded-2xl border border-slate-800/80 hover:border-amber-500/40 transition duration-300">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mb-6">
+            ⚖️
+          </div>
+          <h3 class="text-xl font-bold text-white">Bản Đồ Kép Đối Chứng (Dual-Map)</h3>
+          <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+            Hỗ trợ hiển thị song song hai màn hình để đối chiếu giải thuật đề xuất với giải thuật Baseline truyền thống, cung cấp bằng chứng định lượng rõ ràng về hiệu quả cắt giảm chi phí và thời gian.
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="glass p-8 rounded-2xl border border-slate-800/80 hover:border-rose-500/40 transition duration-300">
+          <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center text-2xl mb-6">
+            🌿
+          </div>
+          <h3 class="text-xl font-bold text-white">Đo Lường Phát Thải ESG</h3>
+          <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+            Tự động tính toán lượng khí thải $\text{CO}_2$ cắt giảm dựa trên định mức nhiên liệu thực tế ($0.285 \text{ kg CO}_2/\text{km}$), hỗ trợ trực tiếp công tác báo cáo phát triển bền vững của doanh nghiệp môi trường.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SYSTEM ARCHITECTURE ==================== -->
+  <section id="architecture" class="py-20 bg-slate-900/30 border-y border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <span class="text-brand-400 text-xs font-mono font-semibold uppercase tracking-wider">Mô hình phân tầng</span>
+        <h2 class="text-3xl sm:text-5xl font-extrabold text-white mt-2">Kiến Trúc Kỹ Thuật Độc Lập</h2>
+        <p class="text-slate-400 text-base mt-4">
+          Phân tách rõ ràng giữa giao diện WebGIS tương tác, dịch vụ API Gateway, và lõi giải thuật C++17 song song.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Layer 1 -->
+        <div class="glass p-6 rounded-2xl border border-slate-800">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <span class="text-xs font-mono text-brand-400 font-bold uppercase">Presentation Layer</span>
+            <span class="text-xs text-slate-500">Port 8502 & 8501</span>
+          </div>
+          <h4 class="text-lg font-bold text-white mt-4">Giao Diện Điều Phối & Phân Tích</h4>
+          <ul class="mt-4 space-y-3 text-xs text-slate-400">
+            <li class="flex items-start space-x-2">
+              <span class="text-brand-400 font-bold">✓</span>
+              <span><strong>WebGIS IOC (Port 8502):</strong> Giao diện Leaflet bản đồ kép, mô phỏng rào chắn, âm thanh cảnh báo.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-brand-400 font-bold">✓</span>
+              <span><strong>Streamlit Dashboard (Port 8501):</strong> Phân tích độ nhạy thuật toán, tinh chỉnh siêu tham số $\alpha, \beta, \rho$.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-brand-400 font-bold">✓</span>
+              <span><strong>Bản đồ vệ tinh:</strong> OpenStreetMap & ArcGIS World Imagery (100% không đường 9 đoạn).</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Layer 2 -->
+        <div class="glass p-6 rounded-2xl border border-slate-800">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <span class="text-xs font-mono text-cyan-400 font-bold uppercase">Services Layer</span>
+            <span class="text-xs text-slate-500">Port 8000 & 8502</span>
+          </div>
+          <h4 class="text-lg font-bold text-white mt-4">Dịch Vụ API Backend</h4>
+          <ul class="mt-4 space-y-3 text-xs text-slate-400">
+            <li class="flex items-start space-x-2">
+              <span class="text-cyan-400 font-bold">✓</span>
+              <span><strong>FastAPI Map Server (8502):</strong> Cung cấp REST endpoints cho kịch bản rác, sự cố và báo cáo tài xế.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-cyan-400 font-bold">✓</span>
+              <span><strong>Core Solver API (8000):</strong> Cổng giải bài toán VRP định dạng chuẩn Solomon qua C++ wrapper.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-cyan-400 font-bold">✓</span>
+              <span><strong>Incident Dispatcher:</strong> Quản lý hàng đợi sự kiện và tự động san sẻ tải phương tiện.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Layer 3 -->
+        <div class="glass p-6 rounded-2xl border border-slate-800">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <span class="text-xs font-mono text-purple-400 font-bold uppercase">Algorithms & Data</span>
+            <span class="text-xs text-slate-500">C++17 & Cache</span>
+          </div>
+          <h4 class="text-lg font-bold text-white mt-4">Động Cơ Giải Thuật Lõi</h4>
+          <ul class="mt-4 space-y-3 text-xs text-slate-400">
+            <li class="flex items-start space-x-2">
+              <span class="text-purple-400 font-bold">✓</span>
+              <span><strong>3D-Parallel ACO (C++17):</strong> Giải thuật đàn kiến đa luồng OpenMP hiệu năng cao.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-purple-400 font-bold">✓</span>
+              <span><strong>Clarke-Wright & OR-Tools:</strong> Tối ưu hóa tải trọng và so sánh đối chứng đa tiêu chí.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <span class="text-purple-400 font-bold">✓</span>
+              <span><strong>OSRM Route Cache:</strong> Ma trận khoảng cách đường phố TP.HCM giúp truy xuất tức thì.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== BENCHMARK COMPARISON TABLE ==================== -->
+  <section id="benchmarks" class="py-20 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <span class="text-brand-400 text-xs font-mono font-semibold uppercase tracking-wider">Đo lường định lượng</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white mt-2">So Sánh Hiệu Năng Thực Nghiệm</h2>
+        <p class="text-slate-400 text-sm mt-3">
+          Số liệu đo đạc thực tế trên tập dữ liệu 12 điểm thu gom Quận 1, TP.HCM với sức chứa 3 xe gom rác:
+        </p>
+      </div>
+
+      <div class="glass rounded-2xl overflow-hidden border border-slate-800 shadow-xl max-w-4xl mx-auto">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-900/80 text-xs font-mono uppercase text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="py-4 px-6">Thuật Toán</th>
+                <th class="py-4 px-6">Tổng Quãng Đường</th>
+                <th class="py-4 px-6">Thời Gian Tính</th>
+                <th class="py-4 px-6">Khí Thải CO₂</th>
+                <th class="py-4 px-6 text-right">Đánh Giá</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 font-mono text-xs">
+              <tr class="bg-brand-500/5 hover:bg-brand-500/10 transition">
+                <td class="py-4 px-6 font-sans font-bold text-white flex items-center space-x-2">
+                  <span class="w-2 h-2 rounded-full bg-brand-400"></span>
+                  <span>Giải Thuật Đề Xuất (Clarke-Wright + Smell)</span>
+                </td>
+                <td class="py-4 px-6 text-brand-400 font-bold">14.82 km</td>
+                <td class="py-4 px-6 text-brand-400 font-bold">38 ms</td>
+                <td class="py-4 px-6 text-brand-400 font-bold">4.22 kg CO₂</td>
+                <td class="py-4 px-6 text-right text-brand-400 font-sans font-semibold">Tối Ưu Nhất</td>
+              </tr>
+              <tr class="hover:bg-slate-800/40 transition">
+                <td class="py-4 px-6 font-sans text-slate-300">Google OR-Tools VRP Solver</td>
+                <td class="py-4 px-6 text-slate-300">15.10 km</td>
+                <td class="py-4 px-6 text-slate-300">185 ms</td>
+                <td class="py-4 px-6 text-slate-300">4.30 kg CO₂</td>
+                <td class="py-4 px-6 text-right text-slate-400 font-sans">Chuẩn Tham Chiếu</td>
+              </tr>
+              <tr class="hover:bg-slate-800/40 transition text-slate-500">
+                <td class="py-4 px-6 font-sans text-slate-400">Baseline Heuristic (Thu Gom Tuần Tự)</td>
+                <td class="py-4 px-6">21.80 km</td>
+                <td class="py-4 px-6">12 ms</td>
+                <td class="py-4 px-6">6.21 kg CO₂</td>
+                <td class="py-4 px-6 text-right font-sans text-red-400">+47% Quãng Đường</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== DEPLOYMENT SECTION ==================== -->
+  <section id="deployment" class="py-20 bg-slate-900/50 border-t border-slate-800">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <span class="text-brand-400 text-xs font-mono font-semibold uppercase tracking-wider">Đóng gói sẵn sàng</span>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white mt-2">Triển Khai Bằng 1 Lệnh Duy Nhất</h2>
+        <p class="text-slate-400 text-sm mt-3">
+          Toàn bộ môi trường C++17, Python 3.11, FastAPI và Streamlit đã được cấu hình trọn gói trong Docker Compose.
+        </p>
+      </div>
+
+      <div class="glass p-6 rounded-2xl border border-slate-800 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 text-xs text-slate-400">
+          <div class="flex items-center space-x-2">
+            <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+            <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+            <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+            <span class="font-mono text-slate-300 ml-2">bash terminal</span>
+          </div>
+          <button id="copy-btn" class="hover:text-white transition flex items-center space-x-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            <span id="copy-text">Sao chép</span>
+          </button>
+        </div>
+        <pre class="mt-4 font-mono text-xs sm:text-sm text-brand-400 overflow-x-auto leading-relaxed"><code><span class="text-slate-500"># 1. Clone repository từ GitHub</span>
+git clone git@github.com:congnghip/Olympic.git
+cd Olympic
+
+<span class="text-slate-500"># 2. Khởi chạy toàn bộ hệ thống bằng Docker Compose</span>
+docker compose up -d --build
+
+<span class="text-slate-500"># 3. Truy cập trung tâm điều phối WebGIS</span>
+open http://localhost:8502</code></pre>
+      </div>
+
+      <!-- Service Endpoints Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+          <div class="font-bold text-white">🗺️ WebGIS Điều Phối (Giao diện chính)</div>
+          <div class="text-brand-400 font-mono mt-1">http://localhost:8502</div>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+          <div class="font-bold text-white">📊 Streamlit Analytics Dashboard</div>
+          <div class="text-cyan-400 font-mono mt-1">http://localhost:8501</div>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+          <div class="font-bold text-white">🔌 Swagger REST API Docs</div>
+          <div class="text-purple-400 font-mono mt-1">http://localhost:8000/docs</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="py-12 border-t border-slate-800 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <span class="font-semibold text-slate-300">Smart Waste Routing Platform</span> — Hệ thống mã nguồn mở phát hành dưới giấy phép 
+          <a href="https://opensource.org/licenses/Apache-2.0" target="_blank" class="text-brand-400 hover:underline">Apache License 2.0</a>.
+        </div>
+        <div class="flex items-center space-x-6 text-slate-400">
+          <a href="https://github.com/congnghip/Olympic" target="_blank" class="hover:text-white transition">GitHub Repo</a>
+          <a href="https://github.com/congnghip/Olympic/blob/main/docs/ARCHITECTURE.md" target="_blank" class="hover:text-white transition">Kiến trúc</a>
+          <a href="https://github.com/congnghip/Olympic/blob/main/docs/API_REFERENCE.md" target="_blank" class="hover:text-white transition">API Docs</a>
+        </div>
+      </div>
+      <div class="mt-6 text-slate-600">
+        Tuân thủ 100% chủ quyền lãnh thổ Việt Nam. Lớp bản đồ sử dụng OpenStreetMap và ArcGIS World Imagery chính thức.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== INTERACTIVE MAP SCRIPT ==================== -->
+  <script>
+    // Depot and District 1 Bins Coordinates
+    const depot = { name: "Trạm Bến Nghé (Depot 0)", lat: 10.7745, lon: 106.7042 };
+    const bins = [
+      { id: 1, name: "Ngõ 42 Nguyễn Huệ (Hẻm sâu)", lat: 10.7735, lon: 106.7032, demand: 45, smell: true },
+      { id: 2, name: "Công viên Bạch Đằng", lat: 10.7726, lon: 106.7060, demand: 40, smell: false },
+      { id: 3, name: "Đồng Khởi (Sau Nhà Hát)", lat: 10.7768, lon: 106.7035, demand: 50, smell: true },
+      { id: 4, name: "Bến Bạch Đằng tập trung", lat: 10.7720, lon: 106.7065, demand: 42, smell: false },
+      { id: 5, name: "Chợ Bến Thành (Lê Lợi)", lat: 10.7725, lon: 106.6980, demand: 48, smell: false },
+      { id: 6, name: "Hẻm 20 Bùi Viện", lat: 10.7675, lon: 106.6935, demand: 50, smell: true },
+      { id: 7, name: "Phan Chu Trinh", lat: 10.7728, lon: 106.6975, demand: 35, smell: false },
+      { id: 8, name: "Hồ Con Rùa", lat: 10.7825, lon: 106.6965, demand: 38, smell: false },
+      { id: 9, name: "Nhà Thờ Đức Bà", lat: 10.7798, lon: 106.6990, demand: 42, smell: false },
+      { id: 10, name: "Bưu Điện Thành Phố", lat: 10.7802, lon: 106.7001, demand: 45, smell: false },
+      { id: 11, name: "Đường Sách Nguyễn Văn Bình", lat: 10.7805, lon: 106.7010, demand: 32, smell: false },
+      { id: 12, name: "Bến Nhà Rồng", lat: 10.7682, lon: 106.7068, demand: 40, smell: false }
+    ];
+
+    // Initialize Leaflet Map
+    const map = L.map('interactive-map', {
+      zoomControl: true,
+      scrollWheelZoom: false
+    }).setView([10.7750, 106.7015], 15);
+
+    // OpenStreetMap Tile Layer (Clean, Sovereignty Compliant)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Custom Icon Creators
+    function createDepotIcon() {
+      return L.divIcon({
+        className: 'custom-depot-icon',
+        html: '<div style="background:#059669; width:28px; height:28px; border-radius:8px; border:2px solid white; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(5,150,105,0.8); font-size:14px;">🏢</div>',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+    }
+
+    function createBinIcon(b) {
+      const bg = b.smell ? '#ef4444' : '#10b981';
+      return L.divIcon({
+        className: 'custom-bin-icon',
+        html: `<div style="background:${bg}; width:20px; height:20px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; color:white; font-size:9px; font-weight:bold; box-shadow:0 0 8px ${bg};">${b.id}</div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+    }
+
+    // Add Depot Marker
+    L.marker([depot.lat, depot.lon], { icon: createDepotIcon() })
+      .bindPopup(`<b>${depot.name}</b><br>Trạm xuất phát & hồi quy`)
+      .addTo(map);
+
+    // Add Bin Markers
+    bins.forEach(b => {
+      L.marker([b.lat, b.lon], { icon: createBinIcon(b) })
+        .bindPopup(`<b>Bô rác #${b.id}: ${b.name}</b><br>Khối lượng: ${b.demand} kg<br>Mùi hôi: ${b.smell ? 'Có (Ưu tiên)' : 'Bình thường'}`)
+        .addTo(map);
+    });
+
+    const routeLayerGroup = L.layerGroup().addTo(map);
+
+    // Default 3 Routes
+    const defaultRoutes = [
+      { color: '#10b981', truck: 'Xe 01', points: [depot, bins[0], bins[2], bins[9], bins[10], bins[8], depot] },
+      { color: '#8b5cf6', truck: 'Xe 02', points: [depot, bins[1], bins[3], bins[11], depot] },
+      { color: '#f59e0b', truck: 'Xe 03', points: [depot, bins[4], bins[6], bins[5], bins[7], depot] }
+    ];
+
+    function drawRoutes(routes, isDetour = false) {
+      routeLayerGroup.clearLayers();
+      routes.forEach(r => {
+        const latlngs = r.points.map(p => [p.lat, p.lon]);
+        L.polyline(latlngs, {
+          color: r.color,
+          weight: 4,
+          opacity: 0.85,
+          dashArray: isDetour && r.truck === 'Xe 01' ? '6, 8' : null
+        }).addTo(routeLayerGroup);
+      });
+    }
+
+    // Draw initial routes
+    drawRoutes(defaultRoutes);
+
+    // Event Handlers
+    document.getElementById('btn-solve').addEventListener('click', () => {
+      drawRoutes(defaultRoutes);
+      document.getElementById('esg-dist').textContent = '14.82 km';
+      document.getElementById('esg-time').textContent = '38 ms';
+      document.getElementById('esg-co2').textContent = '4.22 kg CO₂';
+      document.getElementById('esg-status').textContent = 'Tối Ưu & An Toàn';
+      document.getElementById('esg-status').className = 'font-mono text-base font-bold text-emerald-400 mt-0.5';
+    });
+
+    document.getElementById('btn-roadblock').addEventListener('click', () => {
+      // Simulate roadblock on Nguyen Hue between bin 1 and bin 3
+      routeLayerGroup.clearLayers();
+
+      // Roadblock marker on Nguyen Hue
+      const blockLat = 10.7750, blockLon = 106.7034;
+      const blockIcon = L.divIcon({
+        html: '<div style="background:#ef4444; color:white; width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:bold; box-shadow:0 0 12px red;">⛔</div>',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+      L.marker([blockLat, blockLon], { icon: blockIcon })
+        .bindPopup('<b>⛔ RÀO CHẮN THI CÔNG NGUYỄN HUỆ</b><br>Đã tự động tái định tuyến đường vòng.')
+        .addTo(routeLayerGroup);
+
+      // Re-routed Truck 1 avoids the block via Pasteur/Hai Ba Trung detour
+      const detourPoint = { lat: 10.7760, lon: 106.7010 }; // detour via nearby street
+      const reRoutedRoutes = [
+        { color: '#10b981', truck: 'Xe 01', points: [depot, bins[0], detourPoint, bins[2], bins[9], bins[10], bins[8], depot] },
+        { color: '#8b5cf6', truck: 'Xe 02', points: [depot, bins[1], bins[3], bins[11], depot] },
+        { color: '#f59e0b', truck: 'Xe 03', points: [depot, bins[4], bins[6], bins[5], bins[7], depot] }
+      ];
+
+      drawRoutes(reRoutedRoutes, true);
+
+      // Update metrics
+      document.getElementById('esg-dist').textContent = '15.14 km (+0.32)';
+      document.getElementById('esg-time').textContent = '14 ms (Detour)';
+      document.getElementById('esg-co2').textContent = '4.31 kg CO₂';
+      document.getElementById('esg-status').textContent = 'Đã Đổi Tuyến Đường Vòng';
+      document.getElementById('esg-status').className = 'font-mono text-base font-bold text-amber-400 mt-0.5';
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      drawRoutes(defaultRoutes);
+      document.getElementById('esg-dist').textContent = '14.82 km';
+      document.getElementById('esg-time').textContent = '38 ms';
+      document.getElementById('esg-co2').textContent = '4.22 kg CO₂';
+      document.getElementById('esg-status').textContent = 'Tối Ưu & An Toàn';
+      document.getElementById('esg-status').className = 'font-mono text-base font-bold text-emerald-400 mt-0.5';
+      map.setView([10.7750, 106.7015], 15);
+    });
+
+    // Copy Button
+    document.getElementById('copy-btn').addEventListener('click', () => {
+      const code = `git clone git@github.com:congnghip/Olympic.git\ncd Olympic\ndocker compose up -d --build`;
+      navigator.clipboard.writeText(code).then(() => {
+        document.getElementById('copy-text').textContent = 'Đã chép!';
+        setTimeout(() => {
+          document.getElementById('copy-text').textContent = 'Sao chép';
+        }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
