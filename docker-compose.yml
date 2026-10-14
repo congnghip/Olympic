@@ -1,16 +1,50 @@
-# =====================================================================
-# Docker Compose Mẫu Chuẩn Cho Dự Án Dự Thi (1-Click Competition Launch)
-# =====================================================================
+# ====================================================================
+# DX-OS Open-Core: Multi-service Docker Compose (OLP 2026 Standard)
+# 1-Click Launch for Competition Evaluation
+# ====================================================================
 
 services:
-  app:
-    build: .
-    container_name: competition-app
-    image: competition-app:latest
+  # Tầng 1: Cơ sở dữ liệu Không gian & Giao dịch (PostgreSQL + PostGIS)
+  dx-database:
+    image: postgis/postgis:15-3.3
+    container_name: dx-postgis
+    environment:
+      POSTGRES_DB: dx_os_db
+      POSTGRES_USER: dx_admin
+      POSTGRES_PASSWORD: dx_secure_password_2026
     ports:
-      - "8000:8000"
-      - "8501:8501"
+      - "5432:5432"
     volumes:
-      - ./src:/app/src
+      - ./core-platform/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dx_admin -d dx_os_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Tầng 1, 2, 3: Cụm ứng dụng hợp nhất (PaaS Gateway, WebGIS IOC, Solver, Analytics)
+  dx-app:
+    build: .
+    container_name: dx-os-platform
+    image: dx-os-platform:2026.1
+    depends_on:
+      dx-database:
+        condition: service_healthy
+    ports:
+      - "8000:8000"  # Cổng API Gateway & Core Solver Service
+      - "8501:8501"  # Cổng Streamlit BI/Analytics
+      - "8502:8502"  # Cổng Trung tâm Điều hành WebGIS Thông minh (IOC - Dual Map)
+    environment:
+      - HOST=0.0.0.0
+      - DB_HOST=dx-database
+      - DB_PORT=5432
+      - DB_NAME=dx_os_db
+      - DB_USER=dx_admin
+      - DB_PASS=dx_secure_password_2026
+    volumes:
+      - ./apps/map_dispatcher:/app/apps/map_dispatcher
+      - ./apps/analytics:/app/apps/analytics
+      - ./apps/backend_service:/app/apps/backend_service
       - ./start.sh:/app/start.sh
     restart: unless-stopped
