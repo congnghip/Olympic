@@ -1,17 +1,12 @@
 #!/bin/bash
+set -e
 
-# Start FastAPI backend on port 8000
-echo "Starting FastAPI backend on port 8000..."
-cd /app/backend
-uvicorn main:app --host 0.0.0.0 --port 8000 &
+echo "=== Khởi động ứng dụng dự thi Olympic ==="
+echo "Dịch vụ đang sẵn sàng phục vụ tại các cổng chỉ định..."
 
-# Start Streamlit analytics frontend on port 8501
-echo "Starting Streamlit frontend on port 8501..."
-cd /app/streamlit
-streamlit run app.py --server.address=0.0.0.0 --server.port=8501 &
+# Ví dụ lệnh khởi động dịch vụ của bạn (chỉnh sửa tùy theo framework sử dụng):
+# python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 &
+# streamlit run src/app.py --server.port 8501 &
 
-# Wait for any process to exit
-wait -n
-
-# Exit with status of process that exited first
-exit $?
+# Giữ tiến trình chạy nền:
+tail -f /dev/null

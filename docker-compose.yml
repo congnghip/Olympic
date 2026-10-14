@@ -1,13 +1,16 @@
+# =====================================================================
+# Docker Compose Mẫu Chuẩn Cho Dự Án Dự Thi (1-Click Competition Launch)
+# =====================================================================
+
 services:
   app:
     build: .
     container_name: competition-app
     image: competition-app:latest
     ports:
-      - "8501:8501"
       - "8000:8000"
+      - "8501:8501"
     volumes:
-      - ./streamlit:/app/streamlit
-      - ./src/data:/app/src/data
+      - ./src:/app/src
       - ./start.sh:/app/start.sh
     restart: unless-stopped

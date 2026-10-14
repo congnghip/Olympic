@@ -53,13 +53,7 @@ Makefile.cmake
 *.ninja
 .ninja_*
 
-# Cache & Temporary runtime files
-*.log
-*.tmp
-temp_*
-test_*_page*
-*.bak
-route_cache_temp.json
+# Temporary files
 
 # Typst & Document builds
 *.typ
