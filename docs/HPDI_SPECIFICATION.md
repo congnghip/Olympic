@@ -1,56 +1,42 @@
-# Đặc Tả Kỹ Thuật: Khung Năng Lực Quản Trị Số H - P - D - I
+# Ánh Xạ Kiến Trúc Nghiệp Vụ Theo Khung H - P - D - I
 
-Tài liệu chi tiết về 4 không gian năng lực số hoá trong kiến trúc Tầng 2 của nền tảng DX-OS Open-Core.
-
----
-
-## 1. [H] Human (Con người số) - Giao Tiếp & Tác Nghiệp Hiện Trường
-
-Không gian kết nối nhân sự vận hành giữa trung tâm điều phối và nhân sự tác nghiệp ngoài hiện trường:
-* **Web Mobile Tracker:** Ứng dụng nền web nhẹ, tương thích với trình duyệt di động không cần cài đặt ứng dụng gốc.
-* **Định vị & Viễn trắc phương tiện:** Đồng bộ tọa độ GPS thời gian thực, vận tốc, hướng la bàn và trạng thái pin thiết bị.
-* **Kênh phản ánh sự cố hiện trường:**
-  - Nút bấm phát tín hiệu ưu tiên SOS (`alarm=sos`) về phòng điều hành khi xảy ra va chạm hoặc sự cố khẩn cấp.
-  - Trường nhập dữ liệu phản ánh hiện trường (Voice-to-Text / Text), cho phép ghi nhận nguyên nhân chậm trễ hoặc chướng ngại vật trên tuyến.
+Tài liệu chi tiết về sự phân bổ các module kỹ thuật thực tế trong mã nguồn dự án tương ứng với 4 không gian năng lực số hoá:
 
 ---
 
-## 2. [P] Process (Quy trình số) - Chuẩn Hóa & Phản Ứng Tự Động
-
-Chuẩn hóa các luồng quy trình vận hành tiêu chuẩn (SOP) và kịch bản xử lý ngoại lệ:
-* **Quy trình Thu gom Chuẩn:**
-  1. Khởi tạo phiên làm việc tại trạm trung chuyển (Depot).
-  2. Tiếp nhận lộ trình định tuyến đã được tối ưu hóa theo thứ tự bô rác.
-  3. Cập nhật trạng thái sau khi hoàn thành thu gom tại từng điểm (`collected`).
-  4. Hồi quy về bãi đổ rác/trạm trung chuyển khi đạt ngưỡng tải trọng cho phép.
-* **Quy trình Xử lý Ngoại lệ Tự động (Automated Exception Handling):**
-  - **Sự cố Rào chắn / Đường cấm:** Hệ thống ghi nhận đoạn đường nghẽn, cập nhật trọng số cạnh đồ thị và tái định tuyến đường vòng trong `< 50ms`.
-  - **Sự cố Hỏng hóc Phương tiện:** Hệ thống chuyển giao các điểm gom chưa thực hiện của xe gặp sự cố sang các phương tiện lân cận còn dung tích khả dụng.
-  - **Sự cố Không thể tiếp cận (Ngõ sâu / Hẹp):** Kích hoạt cơ chế "Thu gom đi bộ cự ly ngắn (Walk-in Alley Collection)", tính toán điểm đỗ gần nhất trên trục đường chính và cự ly di chuyển bộ của nhân viên.
+## 1. [H] Human (Con người số) - Giao Tiếp Hiện Trường
+* **Module hiện thực:** Giao diện điều phối hiện trường trong [`map_ui/index.html`](../map_ui/index.html) và endpoint [`/api/waste/driver-report`](../map_ui/server.py).
+* **Tính năng:**
+  - Kênh phản ánh của tài xế: Cho phép nhập hoặc ghi âm phản ánh hiện trường (ngõ hẻm bị chặn, rác cồng kềnh, công trình thi công).
+  - Nút bấm phát tín hiệu báo động SOS khẩn cấp (`alarm=sos`).
+  - Hiển thị trực quan trạng thái pin và viễn trắc phương tiện.
 
 ---
 
-## 3. [D] Data (Dữ liệu số) - Trung Tâm Điều Hành WebGIS & Đo Lường Thực Chứng
-
-Hệ thống hóa dòng chảy dữ liệu phục vụ điều hành và đánh giá hiệu năng:
-* **Trung tâm Điều hành WebGIS (IOC) - Chế độ Bản Đồ Kép (Dual-Map):**
-  - Hiển thị song song hai khung nhìn để đối chiếu hiệu quả định tuyến giữa thuật toán tối ưu cải tiến và thuật toán Baseline.
-  - Lớp bản đồ sử dụng nguồn OpenStreetMap và ArcGIS World Imagery, tuân thủ quy chuẩn không gian địa lý và chủ quyền lãnh thổ Việt Nam.
-* **Bản sao số (Digital Twin):** Thể hiện trực quan trạng thái mạng lưới: tọa độ di chuyển của đội xe, mức đầy của thùng rác (% fill level), và cảnh báo điểm nóng môi trường.
-* **Mô hình Đo lường Chỉ số Xanh & ESG:**
-  - Tổng quãng đường di chuyển: $D = \sum d_i$ (km).
-  - Lượng phát thải $\text{CO}_2$ cắt giảm: $\Delta E = (D_{\text{baseline}} - D_{\text{opt}}) \times 0.285 \text{ kg CO}_2/\text{km}$.
-  - Hệ số tối ưu hóa tải trọng phương tiện: $\eta = \frac{\text{Tải thực tế}}{\text{Sức chứa tối đa}} \times 100\%$.
+## 2. [P] Process (Quy trình số) - Tự Động Hóa Xử Lý Ngoại Lệ (SOP)
+* **Module hiện thực:** Logic nghiệp vụ trong [`map_ui/waste_solver.py`](../map_ui/waste_solver.py) và [`backend/waste_dispatcher.py`](../backend/waste_dispatcher.py).
+* **Tính năng:**
+  - Quy trình thu gom tiêu chuẩn: Xuất phát từ trạm $\rightarrow$ đi qua các điểm gom tối ưu theo sức chứa $\rightarrow$ hồi quy về trạm.
+  - Kịch bản tự động phản ứng rào chắn: Loại bỏ đoạn đường bị chặn khỏi đồ thị và tự động tính đường vòng thay thế (detour) trong `< 50ms`.
+  - Kịch bản san tải xe hỏng: Tự động phân bổ lại các điểm gom chưa thực hiện sang các xe lân cận còn dung tích trống.
+  - Kịch bản thu gom ngõ hẻm: Tính toán điểm đỗ xe đầu hẻm và khoảng cách nhân viên đi bộ tiếp cận thùng rác.
 
 ---
 
-## 4. [I] Intelligence (Trí tuệ số) - Xử Lý Ngôn Ngữ & Thuật Toán 3D-ACO
+## 3. [D] Data (Dữ liệu số) - Trung Tâm Điều Hành WebGIS & Đo Lường ESG
+* **Module hiện thực:** Giao diện Bản Đồ Kép trong [`map_ui/index.html`](../map_ui/index.html) và bộ đệm [`map_ui/route_cache.json`](../map_ui/route_cache.json).
+* **Tính năng:**
+  - Bản đồ kép (Dual-Map): Hiển thị đồng thời hai góc nhìn để đối chiếu giữa thuật toán đề xuất và thuật toán Baseline.
+  - Bản đồ chuẩn chủ quyền: Sử dụng OpenStreetMap và ArcGIS World Imagery (100% không đường lưỡi bò).
+  - Bộ đệm ma trận OSRM: Lưu trữ trước hình học tuyến đường trên mạng lưới đường phố TP.HCM giúp hiển thị không độ trễ.
+  - Đo lường chỉ số xanh (ESG): Tự động tính toán tổng quãng đường (km), lượng phát thải $\text{CO}_2$ cắt giảm, và tỷ lệ lấp đầy thùng xe.
 
-Tích hợp trí tuệ nhân tạo và giải thuật bầy đàn giải quyết bài toán tối ưu:
-* **Tác tử Xử lý Ngôn ngữ Báo cáo Hiện trường:**
-  - Tiếp nhận chuỗi phản ánh của tài xế và dữ liệu GPS.
-  - Phân loại ngữ nghĩa theo các danh mục: `access_blocked` (đường bị chặn), `vehicle_breakdown` (xe hỏng), `invalid_waste` (rác vi phạm), `normal_success` (thu gom bình thường).
-  - Tự động kích hoạt hành động nghiệp vụ tương ứng kèm chỉ số độ tin cậy.
-* **Động cơ Giải thuật 3D-Parallel ACO Core (C++17):**
-  - Hiện thực hóa thuật toán Tối ưu hóa Đàn kiến Song song 3 chiều (3D-Parallel Ant Colony Optimization) giải bài toán định tuyến phương tiện có giới hạn tải trọng (CVRP).
-  - Ứng dụng OpenMP đa luồng, hỗ trợ xử lý đồ thị hàng trăm điểm dừng trong thời gian ngắn.
+---
+
+## 4. [I] Intelligence (Trí tuệ số) - Bộ Giải 3D-ACO & Tác Tử NLP
+* **Module hiện thực:** Lõi giải thuật C++17 trong [`src/`](../src/) và các hàm tối ưu trong [`map_ui/waste_solver.py`](../map_ui/waste_solver.py).
+* **Tính năng:**
+  - Clarke-Wright Savings với hệ số ưu tiên mùi hôi: Ưu tiên gom sớm các thùng rác đang bốc mùi (`has_smell=true`).
+  - Google OR-Tools VRP Solver: Mô hình tham chiếu so sánh đối chứng.
+  - Lõi giải thuật C++17 Parallel ACO (PACO): Giải thuật đàn kiến đa luồng (OpenMP) giải bài toán tối ưu hóa quy mô lớn.
+  - Tác tử phân loại báo cáo tài xế: Phân loại tự động ngữ nghĩa báo cáo hiện trường để kích hoạt hành vi điều phối tương ứng.

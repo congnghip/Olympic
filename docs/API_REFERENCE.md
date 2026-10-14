@@ -1,39 +1,40 @@
-# 🔌 Đặc Tả Giao Diện Lập Trình DX-OS Open-Core (API Reference)
+# Tài Liệu Đặc Tả API (API Reference)
 
-Tất cả các dịch vụ Tầng 1 và Ứng dụng Tầng 2/3 giao tiếp thông qua hệ thống RESTful API đạt chuẩn OpenAPI 3.0 và WebSocket.
-
----
-
-## 📡 1. Cổng Dịch Vụ Định Danh & Nền Tảng Lõi (Tầng 1 PaaS)
-
-### `POST /api/auth/token`
-* **Mô tả:** Cấp phát mã định danh JWT tập trung cho các tác nhân hệ thống (Điều phối viên, Tài xế, API Client).
-* **Request:**
-```json
-{
-  "username": "operator01",
-  "password": "secure_password"
-}
-```
-* **Response:**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1Ni...",
-  "token_type": "bearer",
-  "expires_in": 86400,
-  "role": "OPERATOR"
-}
-```
+Hệ thống cung cấp hai nhóm cổng API phục vụ giao diện bản đồ điều phối thời gian thực (Port 8502) và điều phối giải thuật tối ưu hóa lõi (Port 8000).
 
 ---
 
-## 📡 2. Cổng Điều Phối & Tối Ưu Lộ Trình WebGIS (Port 8502)
+## 1. Nhóm API Bản Đồ Điều Phối & Sự Cố (Port 8502)
 
 ### `GET /api/waste/presets`
-* **Mô tả:** Lấy danh mục kịch bản đô thị mẫu (Quận 1, Quận 3...) kèm tọa độ trạm trung chuyển (depot) và các bô rác.
+* **Mô tả:** Lấy danh mục kịch bản đô thị mẫu (Quận 1, Quận 3) kèm tọa độ điểm tập kết (Depot), danh sách bô rác và kịch bản sự cố.
+* **Response (200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "name": "Q.1 Trung Tâm & Phố Đi Bộ",
+    "theme_color": "#10b981",
+    "depot": {"id": 0, "name": "Trạm tập kết Bến Nghé", "lat": 10.7745, "lon": 106.7042},
+    "bins": [
+      {
+        "id": 1,
+        "name": "Hộ dân ngõ 42 Nguyễn Huệ (Hẻm sâu)",
+        "lat": 10.7735,
+        "lon": 106.7032,
+        "fill_level": 90,
+        "demand": 45,
+        "has_smell": true,
+        "collection_type": "home"
+      }
+    ],
+    "incidents": [...]
+  }
+]
+```
 
 ### `POST /api/waste/solve`
-* **Mô tả:** Thực thi thuật toán tối ưu đa xe 3D-ACO giải bài toán định tuyến.
+* **Mô tả:** Tối ưu hóa phân bổ tuyến đường cho đội xe gom rác bằng giải thuật Clarke-Wright Savings kết hợp heuristic ưu tiên rác bốc mùi.
 * **Request:**
 ```json
 {
@@ -44,36 +45,52 @@ Tất cả các dịch vụ Tầng 1 và Ứng dụng Tầng 2/3 giao tiếp th�
   "solver_choice": "paco"
 }
 ```
-* **Response:**
+* **Response (200 OK):**
 ```json
 {
   "status": "success",
-  "execution_time_ms": 38.2,
+  "execution_time_ms": 32.5,
   "total_distance_km": 14.8,
   "co2_saved_kg": 4.22,
-  "routes": [...]
+  "routes": [
+    {
+      "truck_id": 1,
+      "route_points": [...],
+      "path_coordinates": [[10.7745, 106.7042], ...],
+      "load": 135
+    }
+  ]
 }
 ```
 
-### `POST /api/waste/incident`
-* **Mô tả:** Đón nhận sự cố rào chắn/xe hỏng và tính toán lại lộ trình tức thời (< 50ms).
+### `POST /api/waste/compare`
+* **Mô tả:** Chạy đồng thời và so sánh hiệu năng giữa bộ giải cải tiến, Google OR-Tools và Baseline.
+* **Response (200 OK):** Trả về bảng đối chiếu thời gian chạy (ms), tổng quãng đường (km), và lượng phát thải $\text{CO}_2$ cắt giảm.
 
-### `POST /api/waste/driver-report`
-* **Mô tả:** Tác tử Kev AI tiếp nhận báo cáo bằng giọng nói/văn bản của tài xế và phân loại ngữ nghĩa.
+### `POST /api/waste/resolve-incident`
+* **Mô tả:** Tái định tuyến thời gian thực khi phát sinh sự cố rào chắn công trình hoặc xe hỏng hóc giữa tuyến.
 * **Request:**
 ```json
 {
-  "truck_id": 1,
-  "driver_report": "Hẻm 42 Nguyễn Huệ đang sửa cống xe tải không vào được",
-  "gps": {"lat": 10.7735, "lon": 106.7032}
+  "incident": {
+    "type": "roadblock",
+    "blocked_segment": {
+      "start_lat": 10.7735, "start_lon": 106.7032,
+      "end_lat": 10.7725, "end_lon": 106.6980
+    }
+  },
+  "current_truck_state": {"id": 1, "lat": 10.7730, "lon": 106.7020},
+  "all_trucks": [...]
 }
 ```
-* **Response:**
-```json
-{
-  "incident_category": "access_blocked",
-  "confidence": 0.96,
-  "dispatcher_action": "enable_walk_in_alley",
-  "message": "Đã chuyển sang chế độ đi bộ thu gom đầu hẻm"
-}
-```
+
+### `POST /api/waste/driver-report`
+* **Mô tả:** Tiếp nhận báo cáo bằng giọng nói/văn bản của tài xế và phân loại sự cố để kích hoạt hành vi nghiệp vụ (ví dụ: chế độ đi bộ thu gom ngõ hẻm).
+
+---
+
+## 2. Nhóm API Giải Thuật Lõi VRP (Port 8000)
+
+* **`POST /api/solve`:** Thực thi giải bài toán VRP chuẩn định dạng Solomon thông qua trình bao bọc gọi bộ giải C++.
+* **`POST /api/generate-instance`:** Sinh dữ liệu bài toán ngẫu nhiên phục vụ kiểm thử tải.
+* **`GET /docs`:** Giao diện tài liệu tương tác trực tiếp Swagger UI.

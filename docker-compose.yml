@@ -1,50 +1,21 @@
-# ====================================================================
-# DX-OS Open-Core: Multi-service Docker Compose (OLP 2026 Standard)
-# 1-Click Launch for Competition Evaluation
-# ====================================================================
-
 services:
-  # Tầng 1: Cơ sở dữ liệu Không gian & Giao dịch (PostgreSQL + PostGIS)
-  dx-database:
-    image: postgis/postgis:15-3.3
-    container_name: dx-postgis
-    environment:
-      POSTGRES_DB: dx_os_db
-      POSTGRES_USER: dx_admin
-      POSTGRES_PASSWORD: dx_secure_password_2026
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./core-platform/database/init.sql:/docker-entrypoint-initdb.d/init.sql
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dx_admin -d dx_os_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # Tầng 1, 2, 3: Cụm ứng dụng hợp nhất (PaaS Gateway, WebGIS IOC, Solver, Analytics)
-  dx-app:
+  waste-routing-platform:
     build: .
-    container_name: dx-os-platform
-    image: dx-os-platform:2026.1
-    depends_on:
-      dx-database:
-        condition: service_healthy
+    container_name: waste-routing-app
+    image: waste-routing-app:latest
     ports:
-      - "8000:8000"  # Cổng API Gateway & Core Solver Service
-      - "8501:8501"  # Cổng Streamlit BI/Analytics
-      - "8502:8502"  # Cổng Trung tâm Điều hành WebGIS Thông minh (IOC - Dual Map)
+      - "8000:8000"  # Core Solver API & Dispatcher API (FastAPI)
+      - "8501:8501"  # Parameter Tuning & Sensitivity Analytics (Streamlit)
+      - "8502:8502"  # Real-time WebGIS Waste Dispatcher & Dual-Map UI
+    volumes:
+      - ./map_ui:/app/map_ui
+      - ./streamlit:/app/streamlit
+      - ./backend:/app/backend
+      - ./src/data:/app/src/data
+      - ./start.sh:/app/start.sh
     environment:
       - HOST=0.0.0.0
-      - DB_HOST=dx-database
-      - DB_PORT=5432
-      - DB_NAME=dx_os_db
-      - DB_USER=dx_admin
-      - DB_PASS=dx_secure_password_2026
-    volumes:
-      - ./apps/map_dispatcher:/app/apps/map_dispatcher
-      - ./apps/analytics:/app/apps/analytics
-      - ./apps/backend_service:/app/apps/backend_service
-      - ./start.sh:/app/start.sh
+      - FASTAPI_PORT=8000
+      - STREAMLIT_PORT=8501
+      - MAP_UI_PORT=8502
     restart: unless-stopped

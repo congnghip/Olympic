@@ -1,108 +1,102 @@
-# DX-OS Open-Core
-### Nền Tảng Chuyển Đổi Số Kiến Trúc Lõi Mở & Hệ Thống Điều Phối Vận Tải Đô Thị Thông Minh
+# Smart Waste Routing & Dynamic Incident Dispatcher
+### Hệ Thống Tối Ưu Lộ Trình & Điều Phối Tuyến Thu Gom Rác Thông Minh Tức Thời
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Architecture: 3-Tier](https://img.shields.io/badge/Architecture-3--Tier%20DX--OS-purple.svg)](docs/ARCHITECTURE.md)
-[![Model: H-P-D-I](https://img.shields.io/badge/Model-H--P--D--I%20Framework-orange.svg)](docs/HPDI_SPECIFICATION.md)
-[![Core: C++17 3D-ACO](https://img.shields.io/badge/Core_Solver-C%2B%2B17%203D--ACO-green.svg)](apps/solver_core/)
-[![Deployment: Docker](https://img.shields.io/badge/Deployment-Docker%20Compose-2496ED.svg)](docker-compose.yml)
-[![Map Sovereignty](https://img.shields.io/badge/Map_Sovereignty-100%25_Vietnam_Compliant-red.svg)](#4-quy-chuẩn-bản-đồ--dữ-liệu-không-gian)
+[![Python: 3.11+](https://img.shields.io/badge/Python-3.11%2B-green.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
+[![Core: C++17](https://img.shields.io/badge/Core_Solver-C%2B%2B17%203D--ACO-orange.svg)](src/)
+[![Docker: Ready](https://img.shields.io/badge/Docker-Compose_Ready-2496ED.svg)](docker-compose.yml)
+[![Map Sovereignty](https://img.shields.io/badge/Map_Sovereignty-100%25_Vietnam_Compliant-red.svg)](#4-tuân-thủ-quy-chuẩn-bản-đồ--chủ-quyền-lãnh-thổ)
 
 ---
 
-## 1. Tổng Quan Hệ Thống
+## 1. Giới Thiệu
 
-DX-OS Open-Core là nền tảng quản trị và chuyển đổi số được thiết kế theo kiến trúc Lõi mở (Open-Core) với mô hình tháp 3 tầng. Hệ thống phân định ranh giới rõ ràng giữa dịch vụ nền tảng chạy ngầm (Headless PaaS), không gian năng lực số hóa quản trị (Khung H-P-D-I) và ứng dụng nghiệp vụ chuyên ngành.
+Dự án cung cấp giải pháp toàn diện cho bài toán quản lý, tối ưu hóa lộ trình và điều phối đội xe thu gom rác thải đô thị thời gian thực. Hệ thống giải quyết các vấn đề đặc thù trong giao thông đô thị Việt Nam:
+* **Mạng lưới ngõ hẻm phức tạp:** Tự động nhận diện bô rác trong hẻm sâu và tính toán vị trí đỗ xe tại đầu hẻm để nhân viên đi bộ tiếp cận (*walk-in alley collection*).
+* **Sự cố giao thông phát sinh liên tục:** Khi xảy ra ngập úng hoặc rào chắn thi công đột xuất, hệ thống tự động tìm đường vòng thay thế (detour) trong thời gian `< 50ms`.
+* **San tải khi phương tiện gặp sự cố kỹ thuật:** Tự động điều phối các thùng rác chưa gom của xe bị hỏng sang các xe lân cận còn dung tích chứa khả dụng.
+* **Tối ưu hóa chỉ số môi trường (ESG):** Đo lường trực tiếp quãng đường tiết kiệm và lượng phát thải $\text{CO}_2$ cắt giảm so với phương pháp truyền thống.
 
-Để chứng minh tính khả thi kỹ thuật, hệ thống tích hợp ứng dụng thực tế trong lĩnh vực **Quản lý Vận tải & Điều phối Đội xe Thu gom Rác Đô thị (Smart City Waste TMS)**, giải quyết bài toán định tuyến phương tiện đa điểm có giới hạn tải trọng (CVRP) và tự động xử lý sự cố giao thông hiện trường theo thời gian thực.
-
-![Demo Giao Diện Điều Hành](assets/demo.gif)
+![Demo Hệ Thống](assets/demo.gif)
 
 ---
 
-## 2. Kiến Trúc Tháp 3 Tầng
+## 2. Kiến Trúc Hệ Thống
 
 ```mermaid
 flowchart TD
-    classDef t1 fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
-    classDef t2 fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
-    classDef t3 fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef client fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef service fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef engine fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#f8fafc;
 
-    subgraph Tier3 ["TẦNG 3: NỀN TẢNG KINH DOANH SỐ (Business Applications)"]
-        TMS["Quản Lý Vận Tải Giao Nhận & Thu Gom (Smart Waste TMS)"]:::t3
-        SmartCity["Hạ Tầng Đô Thị Thông Minh (Smart City IoT Integration)"]:::t3
+    subgraph UI ["Giao Diện Người Dùng"]
+        MapUI["<b>Trung Tâm Điều Phối WebGIS (Port 8502)</b><br/>Giao diện Bản Đồ Kép Leaflet<br/>Mô phỏng sự cố, bảng đo lường ESG"]:::client
+        StreamlitUI["<b>Bảng Phân Tích & Nghiên Cứu (Port 8501)</b><br/>Khảo sát độ nhạy & tinh chỉnh tham số"]:::client
     end
 
-    subgraph Tier2 ["TẦNG 2: KHÔNG GIAN NĂNG LỰC SỐ (Khung H - P - D - I)"]
-        H_Space["<b>[H] Human:</b> Web Mobile Tracker cho Tài xế, SOS, Báo Cáo Hiện Trường"]:::t2
-        P_Space["<b>[P] Process:</b> Chuẩn Hóa Luồng Thu Gom (SOP), Tự Động San Tải Xe Hỏng"]:::t2
-        D_Space["<b>[D] Data:</b> Trung Tâm WebGIS (Dual-Map), Bản Sao Số, Chỉ Số Xanh ESG & CO2"]:::t2
-        I_Space["<b>[I] Intelligence:</b> NLP Agent + Bộ Giải C++17 3D-ACO (< 50ms)"]:::t2
+    subgraph Backend ["Dịch Vụ API Backend"]
+        MapServer["<b>Map Server API (FastAPI - Port 8502)</b><br/>Quản lý điểm gom, sự cố & kịch bản mẫu"]:::service
+        BackendAPI["<b>Solver Service API (FastAPI - Port 8000)</b><br/>Cổng điều phối giải thuật VRP & bộ giải C++"]:::service
     end
 
-    subgraph Tier1 ["TẦNG 1: NỀN TẢNG DỊCH VỤ LÕI SỐ (Headless Open-Core PaaS)"]
-        Gateway["Cổng API Gateway & Kiểm Soát Biên Mạng (Reverse Proxy)"]:::t1
-        Auth["Định Danh & Phân Quyền Tập Trung (JWT / RBAC Engine)"]:::t1
-        SpatialDB["Quản Trị Dữ Liệu Không Gian & Giao Dịch (PostgreSQL + PostGIS)"]:::t1
-        Workflow["Động Cơ Luồng Sự Kiện Bất Đồng Bộ (Async Event Bus)"]:::t1
-        Cache["Bộ Đệm Đồ Thị Mạng Lưới Giao Thông (OSRM Routing Matrix Cache)"]:::t1
+    subgraph Core ["Động Cơ Giải Thuật & Dữ Liệu"]
+        WasteSolver["<b>Waste Solver Engine (Python)</b><br/>Clarke-Wright Savings, OR-Tools, Detour Logic"]:::engine
+        CPPSolver["<b>C++17 Metaheuristic Core</b><br/>3D-Parallel ACO (PACO), SA, ALNS"]:::engine
+        OSRM_Cache[("<b>OSRM Route Cache (JSON)</b><br/>Ma trận khoảng cách đường phố TP.HCM")]:::engine
     end
 
-    TMS <--> Tier2
-    SmartCity <--> Tier2
-    Tier2 <--> Gateway
-    Gateway --> Auth
-    Gateway --> SpatialDB
-    Gateway --> Workflow
-    Gateway --> Cache
+    MapUI <-->|REST API| MapServer
+    StreamlitUI <-->|HTTP| BackendAPI
+    MapServer --> WasteSolver
+    BackendAPI --> CPPSolver
+    WasteSolver <--> OSRM_Cache
 ```
 
-### Các Tầng Chức Năng:
-1. **Tầng 1 - Nền tảng Dịch vụ Lõi số (Headless PaaS):** Vận hành ngầm, không giao diện người dùng cuối. Cung cấp các dịch vụ hạ tầng dùng chung: Quản trị định danh (SSO/JWT), Cổng API Gateway, Cơ sở dữ liệu không gian (PostGIS), Động cơ luồng công việc (Event Bus), và Bộ đệm đồ thị OSRM.
-2. **Tầng 2 - Không gian Năng lực số (Khung H-P-D-I):** Cung cấp các công cụ tương tác số hóa quản trị tổ chức theo 4 không gian: Human, Process, Data, Intelligence.
-3. **Tầng 3 - Ứng dụng Nghiệp vụ:** Module chuyên ngành Quản trị Vận tải & Điều phối Thu gom Rác Đô thị (TMS).
-
 ---
 
-## 3. Đặc Tả Không Gian Năng Lực Số H - P - D - I
+## 3. Các Tính Năng Kỹ Thuật Cốt Lõi
 
-| Không Gian Số | Chức Năng Kỹ Thuật | Thành Phần Hiện Thực Trong Hệ Thống |
+| Nhóm Tính Năng | Cơ Chế Hiện Thực | Giá Trị Thực Tiễn |
 |---|---|---|
-| **[H] Human** <br/>*(Con người số)* | Môi trường kết nối nhân sự hiện trường, truyền phát trạng thái và phản ánh thông tin hai chiều. | **Web Mobile Tracker:** Chạy trên trình duyệt di động, tự động đồng bộ tọa độ GPS vệ tinh, vận tốc, mức pin; gửi phản ánh hiện trường bằng giọng nói/văn bản và phát tín hiệu SOS khẩn cấp. |
-| **[P] Process** <br/>*(Quy trình số)* | Chuẩn hóa quy trình vận hành tiêu chuẩn (SOP), thiết lập luồng xử lý và tự động hóa phản ứng sự cố. | **SOP Thu gom & Tự động Phản ứng Ngoại lệ:** Gặp rào chắn/đường cấm $\rightarrow$ tự động tìm đường vòng thay thế; phương tiện hỏng hóc giữa tuyến $\rightarrow$ tự động chia tải các điểm gom chưa thực hiện sang xe kế cận. |
-| **[D] Data** <br/>*(Dữ liệu số)* | Quản trị dựa trên dữ liệu thực chứng; trực quan hóa không gian địa lý; tính toán chỉ số hiệu năng. | **Trung tâm Điều hành WebGIS (IOC) - Chế độ Bản Đồ Kép:** Trực quan hóa bản sao số (Digital Twin) đội xe và thùng rác; hiển thị song song hai thuật toán đối chiếu; tự động tính toán phát thải $\text{CO}_2$ cắt giảm và quãng đường tiết kiệm. |
-| **[I] Intelligence** <br/>*(Trí tuệ số)* | Ứng dụng trí tuệ nhân tạo và giải thuật bầy đàn giải quyết bài toán tối ưu hóa phức hợp. | **Tác tử NLP + Bộ giải C++17 3D-ACO:** Đọc hiểu báo cáo hiện trường để tự động kích hoạt chế độ "thu gom đi bộ vào ngõ hẻm"; thuật toán bầy đàn song song 3 chiều tính toán lộ trình tối ưu trong `< 50ms`. |
+| **Tối Ưu Hóa Tuyến Đa Xe (CVRP)** | Thuật toán Clarke-Wright Savings kết hợp hệ số thưởng cho các thùng rác bốc mùi (`has_smell=true`) | Tối ưu hóa tải trọng phương tiện, ưu tiên giải phóng sớm các điểm ô nhiễm nghiêm trọng |
+| **Tái Định Tuyến Sự Cố (< 50ms)** | Động cơ phát hiện đoạn đường rào chắn và tái cấu trúc lộ trình trên đồ thị OSRM | Phương tiện tự động chuyển hướng đường vòng tức thời, không bị nghẽn tuyến |
+| **San Tải Phương Tiện Hỏng** | Tự động phân bổ lại danh sách bô rác của xe gặp sự cố sang các xe lân cận | Loại bỏ tình trạng ứ đọng rác khi xe gặp sự cố kỹ thuật giữa ca làm việc |
+| **Thu Gom Ngõ Hẻm Nhỏ (Walk-in)** | Tự động xác định điểm đỗ xe đầu ngõ và vạch tuyến đi bộ tiếp cận thùng rác | Thích ứng với hạ tầng ngõ ngách đặc thù tại các đô thị lớn |
+| **Bản Đồ Kép Trực Quan (Dual-Map)** | Hiển thị song song hai khung nhìn Leaflet để đối chiếu giải pháp đề xuất với thuật toán Baseline | Đánh giá trực quan sự khác biệt về quỹ đạo và độ dài tuyến đường |
+| **Bảng Đo Lường Chỉ Số Xanh (ESG)** | Tính toán quãng đường cắt giảm, khối lượng phát thải $\text{CO}_2$ ($\Delta D \times 0.285 \text{ kg/km}$) | Cung cấp số liệu định lượng phục vụ công tác giám sát môi trường |
+| **Xử Lý Báo Cáo Hiện Trường** | Endpoint `/api/waste/driver-report` tiếp nhận phản ánh của tài xế qua giọng nói/văn bản | Kích hoạt tự động các quy trình xử lý ngoại lệ dựa trên ngữ cảnh thực địa |
 
 ---
 
-## 4. Quy Chuẩn Bản Đồ & Dữ Liệu Không Gian
+## 4. Tuân Thủ Quy Chuẩn Bản Đồ & Chủ Quyền Lãnh Thổ
 
-* **Chủ quyền lãnh thổ:** Hệ thống sử dụng nguồn dữ liệu bản đồ từ **OpenStreetMap Tile Server** và lớp vệ tinh **ArcGIS World Imagery**. Toàn bộ hệ thống không sử dụng bất kỳ nguồn bản đồ nào có đường 9 đoạn.
-* **Dữ liệu kiểm thử:** Tọa độ thực nghiệm được số hóa trên địa bàn Quận 1 và Quận 3, TP. Hồ Chí Minh với tên đường và địa danh chính thống.
-* **Hệ quy chiếu:** Chuẩn không gian tọa độ WGS84 (SRID 4326) lưu trữ trực tiếp trên PostgreSQL + PostGIS.
+> [!IMPORTANT]
+> Hệ thống tuân thủ nghiêm ngặt quy định pháp luật Việt Nam về bản đồ và dữ liệu địa lý:
+> - **100% Tuyệt đối không sử dụng bất kỳ nguồn bản đồ nào có đường 9 đoạn (đường lưỡi bò)**.
+> - Lớp bản đồ giao thông: Sử dụng **OpenStreetMap Tile Server** chuẩn quốc tế.
+> - Lớp bản đồ vệ tinh: Sử dụng **ArcGIS World Imagery** chất lượng cao.
+> - Dữ liệu tọa độ kiểm thử được số hóa trực tiếp tại địa bàn **Quận 1 và Quận 3, TP. Hồ Chí Minh** với đầy đủ tên đường phố tiếng Việt chính thống.
 
 ---
 
-## 5. Cài Đặt & Triển Khai
+## 5. Hướng Dẫn Cài Đặt & Khởi Chạy
 
-### Yêu Cầu Tiên Quyết
-* Docker Engine $\ge 20.10$
-* Docker Compose $\ge 2.0$
+### Cách 1: Triển Khai Bằng Docker Compose (Khuyến nghị)
+Yêu cầu hệ thống đã cài đặt Docker và Docker Compose:
 
-### Triển Khai Bằng Docker Compose
 ```bash
-# 1. Khởi động toàn bộ cụm dịch vụ
+# 1. Khởi động toàn bộ hệ thống
 docker compose up -d --build
 
-# 2. Kiểm tra trạng thái các container
+# 2. Kiểm tra trạng thái hoạt động của container
 docker compose ps
 ```
 
-### Danh Mục Cổng Dịch Vụ:
-* 🗺️ **Trung tâm Điều hành WebGIS IOC:** [http://localhost:8502](http://localhost:8502)
-* 📊 **Bảng Phân Tích & Nghiên Cứu Thuật Toán (Streamlit):** [http://localhost:8501](http://localhost:8501)
+Sau khi khởi chạy thành công, truy cập các cổng dịch vụ:
+* 🗺️ **Trung tâm Điều phối WebGIS (Giao diện chính):** [http://localhost:8502](http://localhost:8502)
+* 📊 **Bảng Phân Tích & Tinh Chỉnh Tham Số (Streamlit):** [http://localhost:8501](http://localhost:8501)
 * 🔌 **Cổng API Backend & Solver Core (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
-* 🗄️ **Cơ Sở Dữ Liệu PostgreSQL + PostGIS:** Cổng `5432` (`user: dx_admin`, `db: dx_os_db`)
 
 Để dừng hệ thống:
 ```bash
@@ -111,49 +105,66 @@ docker compose down
 
 ---
 
-## 6. Kịch Bản Vận Hành & Kiểm Thử Hệ Thống
+### Cách 2: Chạy Trực Tiếp Bằng Bash Script (Local Development)
+Yêu cầu máy chủ Linux có sẵn Python $\ge 3.10$, `cmake`, `build-essential`:
 
-Chi tiết từng bước kiểm thử xem tại [docs/SCENARIOS_AND_OPERATIONS.md](docs/SCENARIOS_AND_OPERATIONS.md).
+```bash
+chmod +x start.sh
+./start.sh
+```
 
-1. **Kiểm thử Tối ưu hóa Tuyến Tuyến Đa Xe:** Truy cập cổng 8502, chọn kịch bản `Q.1 Trung Tâm & Phố Đi Bộ` và nhấn `Tối Ưu Hóa Lộ Trình`. Hệ thống sẽ phân bổ các điểm gom cho từng xe dựa trên thuật toán 3D-ACO và hiển thị lộ trình bám theo đồ thị OSRM.
-2. **Kiểm thử Xử lý Rào chắn Đường:** Nhấn nút mô phỏng rào chắn thi công trên đường. Hệ thống loại bỏ đoạn đường khỏi đồ thị và tự động tính toán lại đường vòng trong thời gian dưới 50 mili-giây.
-3. **Kiểm thử San Tải Phương Tiện Hỏng:** Mô phỏng sự cố xe số 1 bị hỏng động cơ. Các điểm gom còn lại của xe này sẽ được tự động phân bổ sang các xe kế cận còn khả dụng dung tích.
-4. **Kiểm thử Nhận diện Báo cáo Hiện trường:** Nhập phản ánh tài xế *"Hẻm 42 Nguyễn Huệ xe không vào được"*. Tác tử NLP nhận diện sự cố và tự động chuyển sang chế độ thu gom đi bộ tại đầu hẻm.
+---
+
+## 6. Kịch Bản Kiểm Thử Nhanh
+
+1. Mở trình duyệt truy cập `http://localhost:8502`.
+2. Tại bảng điều khiển bên trái, chọn kịch bản mẫu: **`Q.1 Trung Tâm & Phố Đi Bộ`**, nhấn nút **`Tối Ưu Hóa Lộ Trình (Solve VRP)`**.
+3. Quan sát các tuyến đường được phân màu riêng biệt theo từng xe, bám sát các khúc cua đường phố TP.HCM và bảng chỉ số ESG cập nhật số kg $\text{CO}_2$ cắt giảm.
+4. Nhấn nút mô phỏng sự cố: **`Chặn đường Nguyễn Huệ / Rào chắn thi công`**. Hệ thống sẽ đánh dấu đoạn đường cấm và tái định tuyến đường vòng trong `< 50ms`.
+5. Nhập phản ánh tại ô báo cáo tài xế: *"Hẻm 42 Nguyễn Huệ xe tải không vào được"* để quan sát cơ chế chuyển sang chế độ đi bộ thu gom đầu hẻm.
 
 ---
 
 ## 7. Cấu Trúc Mã Nguồn
 
 ```
-dx-os-open-core/
-├── core-platform/                         # TẦNG 1: NỀN TẢNG DỊCH VỤ LÕI SỐ (Headless PaaS)
-│   ├── gateway/                           # Cấu hình API Gateway & Reverse Proxy (Nginx)
-│   ├── auth/                              # Quản trị định danh & phân quyền (JWT / RBAC)
-│   ├── database/                          # Cấu trúc CSDL Không gian (PostgreSQL + PostGIS init.sql)
-│   └── workflow/                          # Động cơ sự kiện bất đồng bộ (Async Event Bus)
+Olympic/
+├── map_ui/                                # Phân hệ Bản đồ Điều phối WebGIS (Port 8502)
+│   ├── index.html                         # Giao diện bản đồ tương tác thời gian thực
+│   ├── server.py                          # Máy chủ FastAPI điều phối & API sự cố
+│   ├── waste_solver.py                    # Bộ giải Clarke-Wright, OR-Tools & tái định tuyến
+│   └── route_cache.json                   # Bộ đệm ma trận khoảng cách đường phố OSRM
 │
-├── apps/                                  # TẦNG 2 & 3: ỨNG DỤNG THỰC CHỨNG (Smart City Waste TMS)
-│   ├── map_dispatcher/                    # [D] Data: Trung tâm Điều hành WebGIS IOC (Port 8502)
-│   │   ├── index.html                     # Giao diện bản đồ tương tác thời gian thực
-│   │   ├── server.py                      # Máy chủ điều phối & API xử lý sự cố
-│   │   └── waste_solver.py                # Động cơ giải thuật định tuyến & tái định tuyến < 50ms
-│   ├── solver_core/                       # [I] Intelligence: Lõi giải thuật C++17 3D-Parallel ACO
-│   │   ├── CMakeLists.txt                 # Cấu hình biên dịch CMake
-│   │   ├── core/                          # Các lớp thực thể VRP (Node, Depot, Customer, Locker)
-│   │   └── solvers/                       # Cài đặt thuật toán PACO, ACO, SA, ALNS
-│   ├── analytics/                         # Bảng phân tích tham số thuật toán (Port 8501)
-│   └── backend_service/                   # Dịch vụ API backend phụ trợ (Port 8000)
+├── backend/                               # Phân hệ API Backend & Điều phối Lõi (Port 8000)
+│   ├── main.py                            # Cổng API FastAPI giải bài toán VRP
+│   ├── service.py                         # Wrapper thực thi bộ giải C++
+│   ├── utils.py                           # Tiện ích sinh dữ liệu bài toán VRP
+│   ├── waste_dispatcher.py                # Xử lý sự cố rác & phân loại nghiệp vụ
+│   └── parameters/                        # Tệp cấu hình tham số thuật toán
 │
-├── docs/                                  # TÀI LIỆU KỸ THUẬT HỆ THỐNG
-│   ├── ARCHITECTURE.md                    # Đặc tả chi tiết Khung Kiến trúc Tháp 3 Tầng
-│   ├── HPDI_SPECIFICATION.md              # Phân rã kỹ thuật 4 không gian số H - P - D - I
-│   ├── SCENARIOS_AND_OPERATIONS.md        # Hướng dẫn vận hành & các kịch bản kiểm thử
-│   ├── API_REFERENCE.md                   # Đặc tả toàn bộ RESTful API & WebSocket
+├── streamlit/                             # Phân hệ Phân tích & Tinh chỉnh Tham số (Port 8501)
+│   ├── app.py                             # Giao diện Streamlit phân tích độ nhạy
+│   ├── map_app.py                         # Trực quan hóa bản đồ phụ trợ
+│   ├── map_visualizer.py                  # Module vẽ tuyến đường
+│   ├── solver_api_client.py               # Thư viện client gọi sang backend port 8000
+│   └── vrp_parser.py                      # Parser dữ liệu chuẩn Solomon
+│
+├── src/                                   # Lõi Thuật toán Tối ưu hóa C++17
+│   ├── CMakeLists.txt                     # Cấu hình biên dịch CMake
+│   ├── core/                              # Các lớp thực thể VRP (Node, Depot, Customer, Locker)
+│   ├── solvers/                           # Cài đặt PACO, ACO, SA, GA, ALNS
+│   └── data/                              # Thư viện dữ liệu thực nghiệm Solomon benchmarks
+│
+├── assets/                                # Ảnh minh họa, kịch bản demo và ảnh lộ trình
+├── docs/                                  # Tài liệu kỹ thuật chi tiết
+│   ├── ARCHITECTURE.md                    # Đặc tả kiến trúc kỹ thuật hệ thống
+│   ├── HPDI_SPECIFICATION.md              # Ánh xạ kiến trúc nghiệp vụ theo khung H-P-D-I
+│   ├── SCENARIOS_AND_OPERATIONS.md        # Hướng dẫn vận hành & kịch bản kiểm thử
+│   ├── API_REFERENCE.md                   # Đặc tả toàn bộ RESTful API
 │   └── DEPLOYMENT_CHECKLIST.md            # Danh sách kiểm tra đóng gói & triển khai
 │
-├── assets/                                # Ảnh kiến trúc, demo GIF và tài nguyên giao diện
-├── docker-compose.yml                     # Cấu hình triển khai hệ sinh thái đồng nhất
-├── Dockerfile                             # Đóng gói môi trường container
+├── docker-compose.yml                     # Cấu hình triển khai toàn bộ hệ thống bằng Docker
+├── Dockerfile                             # Đóng gói môi trường container C++17 & Python
 ├── start.sh                               # Script khởi động tự động
 ├── .env.example                           # Mẫu cấu hình biến môi trường
 ├── .gitignore                             # Bộ lọc loại bỏ tệp tin rác

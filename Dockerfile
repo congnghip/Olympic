@@ -1,7 +1,3 @@
-# ====================================================================
-# DX-OS Open-Core: Unified Competition Container Dockerfile (OLP 2026)
-# ====================================================================
-
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -9,7 +5,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install build dependencies for C++17 solver & GIS
+# Install build dependencies for C++17 solver
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -25,14 +21,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 # Copy source tree
 COPY . /app
 
-# Compile C++17 3D-ACO Solver Core
-WORKDIR /app/apps/solver_core
+# Compile C++17 Solver Core
+WORKDIR /app/src
 RUN mkdir -p build && cd build && cmake .. && make test || true
 
 # Copy compiled test binary to backend if available
-RUN mkdir -p /app/apps/backend_service/bin && \
-    if [ -f /app/apps/solver_core/build/test ]; then \
-        cp /app/apps/solver_core/build/test /app/apps/backend_service/bin/test; \
+RUN mkdir -p /app/backend/bin && \
+    if [ -f /app/src/build/test ]; then \
+        cp /app/src/build/test /app/backend/bin/test; \
     fi
 
 # Install Python dependencies across modules
@@ -48,10 +44,6 @@ RUN pip install --no-cache-dir \
 WORKDIR /app
 RUN chmod +x /app/start.sh
 
-# Ports:
-# 8000: API Gateway & Core Solver Service
-# 8501: Streamlit Research & Analytics
-# 8502: Realtime WebGIS Map Dispatcher (IOC)
 EXPOSE 8000
 EXPOSE 8501
 EXPOSE 8502

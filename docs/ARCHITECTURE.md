@@ -1,68 +1,74 @@
-# Đặc Tả Kiến Trúc Hệ Thống: DX-OS Open-Core
+# Đặc Tả Kiến Trúc Kỹ Thuật Hệ Thống
 
-DX-OS Open-Core là nền tảng hệ điều hành chuyển đổi số theo kiến trúc lõi mở (Open-Core Architecture), áp dụng nguyên tắc phân tách mối quan tâm (Separation of Concerns) thành mô hình tháp 3 tầng.
+Hệ thống được thiết kế theo kiến trúc dịch vụ phân tán gồm 3 phân hệ chính kết nối qua giao thức HTTP RESTful và chia sẻ ma trận định tuyến OSRM:
 
 ---
 
-## 1. Sơ Đồ Kiến Trúc Tháp 3 Tầng
+## 1. Sơ Đồ Kiến Trúc Hệ Thống
 
 ```mermaid
 flowchart TD
-    classDef t1 fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
-    classDef t2 fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
-    classDef t3 fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef client fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef service fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef engine fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#f8fafc;
 
-    subgraph Tier3 ["TẦNG 3: NỀN TẢNG KINH DOANH SỐ (Business Applications)"]
-        TMS["Quản Lý Vận Tải Giao Nhận & Thu Gom (Smart Waste TMS)"]:::t3
-        SmartCity["Hạ Tầng Đô Thị Thông Minh (Smart City IoT Integration)"]:::t3
+    subgraph Presentation ["Giao Diện Người Dùng (Presentation Layer)"]
+        WebGIS["<b>Map Dispatcher UI (Port 8502)</b><br/>Giao diện Bản Đồ Kép Leaflet<br/>Mô phỏng sự cố & bảng ESG"]:::client
+        StreamlitUI["<b>Analytics Dashboard (Port 8501)</b><br/>Phân tích độ nhạy & Tinh chỉnh tham số"]:::client
     end
 
-    subgraph Tier2 ["TẦNG 2: KHÔNG GIAN NĂNG LỰC SỐ (Khung H - P - D - I)"]
-        H_Space["<b>[H] Human:</b> Web Mobile Tracker cho Tài xế, SOS, Báo Cáo Hiện Trường"]:::t2
-        P_Space["<b>[P] Process:</b> Chuẩn hóa Luồng Thu Gom (SOP), Tự Động San Tải Xe Hỏng"]:::t2
-        D_Space["<b>[D] Data:</b> Trung Tâm WebGIS (Dual-Map), Bản Sao Số, Chỉ Số Xanh ESG & CO2"]:::t2
-        I_Space["<b>[I] Intelligence:</b> NLP Agent + Bộ Giải C++17 3D-ACO (< 50ms)"]:::t2
+    subgraph Services ["Dịch Vụ API Backend (Services Layer)"]
+        MapServer["<b>Map Server API (FastAPI - Port 8502)</b><br/>Quản lý điểm gom, sự cố & tái định tuyến"]:::service
+        BackendAPI["<b>Solver Service API (FastAPI - Port 8000)</b><br/>Điều phối giải thuật VRP & bộ giải C++"]:::service
     end
 
-    subgraph Tier1 ["TẦNG 1: NỀN TẢNG DỊCH VỤ LÕI SỐ (Headless Open-Core PaaS)"]
-        Gateway["Cổng API Gateway & Kiểm Soát Biên Mạng (Reverse Proxy)"]:::t1
-        Auth["Định Danh & Phân Quyền Tập Trung (JWT / RBAC Engine)"]:::t1
-        SpatialDB["Quản Trị Dữ Liệu Không Gian & Giao Dịch (PostgreSQL + PostGIS)"]:::t1
-        Workflow["Động Cơ Luồng Sự Kiện Bất Đồng Bộ (Async Event Bus)"]:::t1
-        Cache["Bộ Đệm Đồ Thị Mạng Lưới Giao Thông (OSRM Routing Matrix Cache)"]:::t1
+    subgraph CoreEngines ["Động Cơ Giải Thuật & Dữ Liệu (Core Engines)"]
+        WasteSolver["<b>Waste Solver Engine (Python)</b><br/>Clarke-Wright Savings, OR-Tools, Heuristics"]:::engine
+        CPPSolver["<b>C++17 Metaheuristic Core</b><br/>3D-Parallel ACO (PACO), SA, ALNS"]:::engine
+        OSRM_Cache[("<b>OSRM Route Cache (JSON)</b><br/>Ma trận khoảng cách đường phố TP.HCM")]:::engine
     end
 
-    TMS <--> Tier2
-    SmartCity <--> Tier2
-    Tier2 <--> Gateway
-    Gateway --> Auth
-    Gateway --> SpatialDB
-    Gateway --> Workflow
-    Gateway --> Cache
+    WebGIS <-->|REST API| MapServer
+    StreamlitUI <-->|HTTP| BackendAPI
+    MapServer --> WasteSolver
+    BackendAPI --> CPPSolver
+    WasteSolver <--> OSRM_Cache
 ```
 
 ---
 
-## 2. Chi Tiết Phân Tầng Kỹ Thuật
+## 2. Phân Hệ Chi Tiết
 
-### Tầng 1: Nền tảng Dịch vụ Lõi số (Headless Open-Core PaaS)
-Vận hành hoàn toàn ngầm không giao diện (headless), trừu tượng hóa hạ tầng kỹ thuật và cung cấp các dịch vụ dùng chung qua API:
-1. **API Gateway & Biên mạng:** Kiểm soát truy cập tập trung, phân luồng request tới các dịch vụ backend, hỗ trợ WebSocket truyền phát thời gian thực.
-2. **Định danh & Phân quyền (Identity & RBAC):** Cung cấp cơ chế xác thực JWT, bảo vệ thông tin định danh và phân quyền theo vai trò (`ADMIN`, `OPERATOR`, `DRIVER`).
-3. **Cơ sở dữ liệu Không gian (Spatial Database):** Sử dụng PostgreSQL tích hợp PostGIS, quản lý các thực thể địa lý (trạm trung chuyển, bô rác, vết di chuyển GPS) trên hệ quy chiếu WGS84 (SRID 4326).
-4. **Động cơ Sự kiện & Luồng nghiệp vụ (Event Bus & Workflow):** Cơ chế Publish/Subscribe bất đồng bộ để tiếp nhận và điều phối các sự kiện hiện trường (tắc đường, sự cố kỹ thuật xe, thùng rác quá tải).
-5. **Bộ đệm Đồ thị Giao thông (Routing Matrix Cache):** Tiền tính toán và lưu đệm ma trận khoảng cách OSRM giúp giảm tải truy vấn lặp lại và đảm bảo thời gian phản hồi định tuyến `< 50ms`.
-
----
-
-### Tầng 2: Không gian Năng lực Quản trị số (Khung H-P-D-I)
-Cung cấp giao diện tương tác và nghiệp vụ số hóa theo 4 không gian năng lực:
-* **[H] Human (Con người số):** Web Mobile Tracker cho lực lượng hiện trường; hỗ trợ cập nhật trạng thái GPS, gửi báo cáo hiện trường bằng giọng nói/văn bản và phát tín hiệu SOS khẩn cấp.
-* **[P] Process (Quy trình số):** Chuẩn hóa quy trình thu gom thường kỳ (SOP) và quy trình tự động hóa phản ứng sự cố: tự động định tuyến đường vòng khi gặp rào chắn, tự động san tải thùng rác khi xe gặp sự cố động cơ.
-* **[D] Data (Dữ liệu số):** Trung tâm điều hành thông minh (IOC) với giao diện WebGIS Bản Đồ Kép (Dual-Map); cập nhật bản sao số (Digital Twin) theo thời gian thực; tính toán các chỉ số môi trường (quãng đường tiết kiệm, phát thải $\text{CO}_2$ cắt giảm, tỷ lệ tối ưu tải trọng).
-* **[I] Intelligence (Trí tuệ số):** Tác tử NLP phân tích báo cáo tài xế để nhận diện trở ngại; tích hợp động cơ giải thuật bầy đàn 3 chiều (3D-Parallel Ant Colony Optimization - 3D-ACO) viết bằng C++17 giải bài toán định tuyến phương tiện đa điểm (VRP).
+### 1. Phân Hệ Điều Phối Bản Đồ Thời Gian Thực (`map_ui/` - Port 8502)
+* **`server.py`:** Máy chủ FastAPI quản lý các kịch bản mẫu đô thị tại TP.HCM (Quận 1, Quận 3), tiếp nhận sự cố hiện trường và điều phối tái định tuyến.
+* **`index.html`:** Giao diện điều phối tương tác thời gian thực hỗ trợ chế độ Bản Đồ Kép (Dual-Map), trực quan hóa vết xe chạy, cảnh báo rào chắn công trình, và đo lường chỉ số phát thải $\text{CO}_2$.
+* **`waste_solver.py`:** Bộ giải tích hợp nhiều thuật toán:
+  - **Clarke-Wright Savings:** Tối ưu hóa tải trọng phương tiện có xét trọng số ưu tiên điểm bốc mùi (`has_smell`).
+  - **Google OR-Tools VRP:** Mô hình tham chiếu so sánh đối chứng.
+  - **Tái định tuyến sự cố (< 50ms):** Tự động phát hiện đoạn đường bị rào chắn và tìm đường vòng tránh điểm nghẽn.
+  - **Phân bổ thu gom ngõ hẻm (Walk-in Alley):** Tự động tính toán điểm đỗ xe đầu hẻm cho các bô rác không thể tiếp cận bằng xe cơ giới.
+* **`route_cache.json`:** Bộ đệm ma trận tọa độ đường phố TP.HCM giúp truy xuất lộ trình siêu tốc không phụ thuộc vào đường truyền mạng ngoài.
 
 ---
 
-### Tầng 3: Nền tảng Ứng dụng Nghiệp vụ (Business Applications)
-Phân hệ ứng dụng thực chiến trong lĩnh vực Quản lý Vận tải Giao nhận (TMS) và Đô thị Thông minh (Smart City IoT), giải quyết bài toán điều phối tuyến xe thu gom rác tại các khu vực đô thị có mật độ ngõ hẻm cao.
+### 2. Phân Hệ API Backend & Điều Phối Lõi (`backend/` - Port 8000)
+* **`main.py`:** Cổng API giải bài toán VRP định dạng chuẩn Solomon / Li & Lim.
+* **`service.py`:** Trình bao bọc (wrapper) gọi thực thi các tệp nhị phân C++ đã biên dịch.
+* **`waste_dispatcher.py`:** Quản lý hàng đợi sự cố và tiếp nhận báo cáo phân loại từ tài xế.
+
+---
+
+### 3. Phân Hệ Nghiên Cứu & Tinh Chỉnh Tham Số (`streamlit/` - Port 8501)
+* **`app.py`:** Bảng điều khiển phân tích độ nhạy thuật toán (Sensitivity Analysis), khảo sát tác động của các siêu tham số $\alpha, \beta, \rho$ đối với chất lượng nghiệm.
+* **`solver_api_client.py`:** Thư viện client gọi sang backend port 8000.
+
+---
+
+### 4. Lõi Thuật Toán C++17 (`src/`)
+* **Kiến trúc song song:** Tận dụng OpenMP xử lý đa luồng trên CPU máy chủ.
+* **Các thuật toán cài đặt:**
+  - `PACO.cpp`: Parallel Ant Colony Optimization.
+  - `SA.cpp`: Simulated Annealing.
+  - `GA.cpp`: Genetic Algorithm.
+  - `ALNS.cpp`: Adaptive Large Neighborhood Search.
+* **Dữ liệu thực nghiệm:** Thư viện Solomon benchmarks 25, 50, 100 khách hàng (`src/data/`).
