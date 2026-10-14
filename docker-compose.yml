@@ -1,15 +1,13 @@
 services:
-  vrp-app:
+  app:
     build: .
-    container_name: vrp-app
-    image: vrp-app:1.1.2
+    container_name: competition-app
+    image: competition-app:latest
     ports:
       - "8501:8501"
-      - "8502:8502"
       - "8000:8000"
     volumes:
       - ./streamlit:/app/streamlit
-      - ./map_ui:/app/map_ui
       - ./src/data:/app/src/data
       - ./start.sh:/app/start.sh
     restart: unless-stopped
