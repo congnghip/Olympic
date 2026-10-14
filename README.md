@@ -14,6 +14,7 @@
 
 Dự án cung cấp giải pháp toàn diện cho bài toán quản lý, tối ưu hóa lộ trình và điều phối đội xe thu gom rác thải đô thị thời gian thực. Hệ thống giải quyết các vấn đề đặc thù trong giao thông đô thị Việt Nam:
 * **Mạng lưới ngõ hẻm phức tạp:** Tự động nhận diện bô rác trong hẻm sâu và tính toán vị trí đỗ xe tại đầu hẻm để nhân viên đi bộ tiếp cận (*walk-in alley collection*).
+* **Tác tử điều phối hiện trường Kev AI:** Tự động tiếp nhận và phân tích phản ánh giọng nói/văn bản của tài xế cùng dữ liệu GPS để phân loại sự cố và kích hoạt phương án ứng phó tức thì.
 * **Sự cố giao thông phát sinh liên tục:** Khi xảy ra ngập úng hoặc rào chắn thi công đột xuất, hệ thống tự động tìm đường vòng thay thế (detour) trong thời gian `< 50ms`.
 * **San tải khi phương tiện gặp sự cố kỹ thuật:** Tự động điều phối các thùng rác chưa gom của xe bị hỏng sang các xe lân cận còn dung tích chứa khả dụng.
 * **Tối ưu hóa chỉ số môi trường (ESG):** Đo lường trực tiếp quãng đường tiết kiệm và lượng phát thải $\text{CO}_2$ cắt giảm so với phương pháp truyền thống.
@@ -31,7 +32,7 @@ flowchart TD
     classDef engine fill:#312e81,stroke:#6366f1,stroke-width:2px,color:#f8fafc;
 
     subgraph UI ["Giao Diện Người Dùng"]
-        MapUI["<b>Trung Tâm Điều Phối WebGIS (Port 8502)</b><br/>Giao diện Bản Đồ Kép Leaflet<br/>Mô phỏng sự cố, bảng đo lường ESG"]:::client
+        MapUI["<b>Trung Tâm Điều Phối WebGIS (Port 8502)</b><br/>Giao diện Bản Đồ Kép Leaflet<br/>Mô phỏng sự cố, bảng đo lường ESG, Kev AI Modal"]:::client
         StreamlitUI["<b>Bảng Phân Tích & Nghiên Cứu (Port 8501)</b><br/>Khảo sát độ nhạy & tinh chỉnh tham số"]:::client
     end
 
@@ -40,8 +41,9 @@ flowchart TD
         BackendAPI["<b>Solver Service API (FastAPI - Port 8000)</b><br/>Cổng điều phối giải thuật VRP & bộ giải C++"]:::service
     end
 
-    subgraph Core ["Động Cơ Giải Thuật & Dữ Liệu"]
+    subgraph Core ["Động Cơ Giải Thuật & Trí Tuệ Nhân Tạo"]
         WasteSolver["<b>Waste Solver Engine (Python)</b><br/>Clarke-Wright Savings, OR-Tools, Detour Logic"]:::engine
+        KevAI["<b>Kev System One AI Engine</b><br/>Phân tích báo cáo tài xế & telemetry GPS"]:::engine
         CPPSolver["<b>C++17 Metaheuristic Core</b><br/>3D-Parallel ACO (PACO), SA, ALNS"]:::engine
         OSRM_Cache[("<b>OSRM Route Cache (JSON)</b><br/>Ma trận khoảng cách đường phố TP.HCM")]:::engine
     end
@@ -50,6 +52,7 @@ flowchart TD
     StreamlitUI <-->|HTTP| BackendAPI
     MapServer --> WasteSolver
     BackendAPI --> CPPSolver
+    WasteSolver <--> KevAI
     WasteSolver <--> OSRM_Cache
 ```
 
@@ -65,7 +68,7 @@ flowchart TD
 | **Thu Gom Ngõ Hẻm Nhỏ (Walk-in)** | Tự động xác định điểm đỗ xe đầu ngõ và vạch tuyến đi bộ tiếp cận thùng rác | Thích ứng với hạ tầng ngõ ngách đặc thù tại các đô thị lớn |
 | **Bản Đồ Kép Trực Quan (Dual-Map)** | Hiển thị song song hai khung nhìn Leaflet để đối chiếu giải pháp đề xuất với thuật toán Baseline | Đánh giá trực quan sự khác biệt về quỹ đạo và độ dài tuyến đường |
 | **Bảng Đo Lường Chỉ Số Xanh (ESG)** | Tính toán quãng đường cắt giảm, khối lượng phát thải $\text{CO}_2$ ($\Delta D \times 0.285 \text{ kg/km}$) | Cung cấp số liệu định lượng phục vụ công tác giám sát môi trường |
-| **Xử Lý Báo Cáo Hiện Trường** | Endpoint `/api/waste/driver-report` tiếp nhận phản ánh của tài xế qua giọng nói/văn bản | Kích hoạt tự động các quy trình xử lý ngoại lệ dựa trên ngữ cảnh thực địa |
+| **Điều Phối Tác Tử Kev AI** | Tích hợp **Kev System One AI Engine** qua endpoint `/api/waste/driver-report` tiếp nhận phản ánh tài xế & telemetry GPS | Tự động nhận diện ngữ cảnh thực địa (hẻm hẹp, hỏng xe, cấm đường) và kích hoạt quy trình tái định tuyến tức thì |
 
 ---
 
@@ -121,7 +124,7 @@ chmod +x start.sh
 2. Tại bảng điều khiển bên trái, chọn kịch bản mẫu: **`Q.1 Trung Tâm & Phố Đi Bộ`**, nhấn nút **`Tối Ưu Hóa Lộ Trình (Solve VRP)`**.
 3. Quan sát các tuyến đường được phân màu riêng biệt theo từng xe, bám sát các khúc cua đường phố TP.HCM và bảng chỉ số ESG cập nhật số kg $\text{CO}_2$ cắt giảm.
 4. Nhấn nút mô phỏng sự cố: **`Chặn đường Nguyễn Huệ / Rào chắn thi công`**. Hệ thống sẽ đánh dấu đoạn đường cấm và tái định tuyến đường vòng trong `< 50ms`.
-5. Nhập phản ánh tại ô báo cáo tài xế: *"Hẻm 42 Nguyễn Huệ xe tải không vào được"* để quan sát cơ chế chuyển sang chế độ đi bộ thu gom đầu hẻm.
+5. Nhấn nút **`Tài Xế AI (Kev)`**, nhập phản ánh tại ô báo cáo tài xế: *"Hẻm 42 Nguyễn Huệ xe tải không vào được"* (hoặc chọn kịch bản mẫu) rồi nhấn gửi. **Kev AI Engine** sẽ phân tích ngữ cảnh, ra quyết định và tự động kích hoạt cơ chế chuyển sang đi bộ thu gom đầu hẻm.
 
 ---
 
@@ -130,16 +133,16 @@ chmod +x start.sh
 ```
 Olympic/
 ├── map_ui/                                # Phân hệ Bản đồ Điều phối WebGIS (Port 8502)
-│   ├── index.html                         # Giao diện bản đồ tương tác thời gian thực
-│   ├── server.py                          # Máy chủ FastAPI điều phối & API sự cố
-│   ├── waste_solver.py                    # Bộ giải Clarke-Wright, OR-Tools & tái định tuyến
+│   ├── index.html                         # Giao diện bản đồ tương tác thời gian thực & Kev AI Modal
+│   ├── server.py                          # Máy chủ FastAPI điều phối, API sự cố & Kev AI endpoint
+│   ├── waste_solver.py                    # Bộ giải Clarke-Wright, OR-Tools, Detour & tích hợp Kev AI
 │   └── route_cache.json                   # Bộ đệm ma trận khoảng cách đường phố OSRM
 │
 ├── backend/                               # Phân hệ API Backend & Điều phối Lõi (Port 8000)
 │   ├── main.py                            # Cổng API FastAPI giải bài toán VRP
 │   ├── service.py                         # Wrapper thực thi bộ giải C++
 │   ├── utils.py                           # Tiện ích sinh dữ liệu bài toán VRP
-│   ├── waste_dispatcher.py                # Xử lý sự cố rác & phân loại nghiệp vụ
+│   ├── waste_dispatcher.py                # Xử lý sự cố rác & tích hợp Kev System One AI
 │   └── parameters/                        # Tệp cấu hình tham số thuật toán
 │
 ├── streamlit/                             # Phân hệ Phân tích & Tinh chỉnh Tham số (Port 8501)
