@@ -1,0 +1,146 @@
+version: '3.8'
+
+# ==============================================================================
+# DX-OS OPEN-CORE: 3-TIER ARCHITECTURE DOCKER COMPOSE CONFIGURATION
+# Olympic Tin học Sinh viên 2026 - Khối Phần mềm Nguồn Mở (PMNM)
+# ==============================================================================
+
+networks:
+  dxos_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+
+services:
+  # ----------------------------------------------------------------------------
+  # TẦNG 1: DỮ LIỆU CẤU TRÚC (POSTGRESQL 16)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: dxos_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dxos_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dxos_secret_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-dxos_construction}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/init-db/01-init-schema.sql:/docker-entrypoint-initdb.d/01-init-schema.sql
+    networks:
+      - dxos_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dxos_admin -d dxos_construction"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # TẦNG 1: LƯU TRỮ ĐỐI TƯỢNG (MINIO S3 OBJECT STORAGE - BẢN VẼ & CÔNG VĂN)
+  # ----------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: dxos_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_secret_2026}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - dxos_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Tự động khởi tạo Bucket cho MinIO
+  minio-init:
+    image: minio/mc:latest
+    container_name: dxos_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - dxos_network
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin_secret_2026;
+      /usr/bin/mc mb myminio/construction-dossiers || true;
+      /usr/bin/mc anonymous set download myminio/construction-dossiers;
+      exit 0;
+      "
+
+  # ----------------------------------------------------------------------------
+  # TẦNG 1: ĐỘNG CƠ LUỒNG QUY TRÌNH (FLOWABLE REST BPMN 2.0)
+  # ----------------------------------------------------------------------------
+  workflow:
+    image: flowable/flowable-rest:latest
+    container_name: dxos_flowable
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8090
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dxos_construction
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-dxos_admin}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-dxos_secret_password_2026}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+    ports:
+      - "${FLOWABLE_PORT:-8090}:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dxos_network
+
+  # ----------------------------------------------------------------------------
+  # TẦNG 1 & 2: BACKEND FASTAPI & MCP SERVER (AI AGENT CORE & REST API)
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dxos_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dxos_admin}:${POSTGRES_PASSWORD:-dxos_secret_password_2026}@postgres:5432/${POSTGRES_DB:-dxos_construction}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_secret_2026}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-construction-dossiers}
+      FLOWABLE_API_URL: http://workflow:8090/flowable-rest/service
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - ./samples:/app/samples
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - dxos_network
+
+  # ----------------------------------------------------------------------------
+  # TẦNG 3: NỀN TẢNG KINH DOANH SỐ (WEB PORTAL KỸ SƯ & CÁN BỘ)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dxos_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - dxos_network
